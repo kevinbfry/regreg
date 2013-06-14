@@ -19,6 +19,7 @@ def configuration(parent_package='',top_path=None):
     config.add_subpackage('problems')
     config.add_subpackage('smooth')
     config.add_subpackage('tests')
+    config.add_subpackage('knots')
 
     return config
 
