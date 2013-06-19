@@ -3,14 +3,16 @@ import numpy as np
 
 from regreg.knots import find_alpha, linear_fractional_nesta
 
-def lasso_knot_covstat(X, R, soln, L):
+def lasso_knot_covstat(X, R, soln, tol=1.e-6):
     """
     Find an approximate LASSO knot
     """
     X = rr.astransform(X)
     p = X.input_shape[0]
     soln = soln / np.fabs(soln).sum()
-    which = np.nonzero(soln)[0]
+    U = X.adjoint_map(R).copy()
+    L = np.fabs(U).max()
+    which = np.nonzero(np.fabs(np.fabs(U) - L) < tol * L)[0]
     s = np.sign(soln)
 
     if which.shape[0] > 1:
@@ -19,8 +21,9 @@ def lasso_knot_covstat(X, R, soln, L):
         tangent_vectors = None
 
     alpha, var = find_alpha(soln, X, tangent_vectors)
-    U = X.adjoint_map(R).copy()
     
+    L = np.fabs(U).max()
+
     # having found alpha, we can 
     # solve for M+, M- explicitly (almost surely)
     Mplus = {}
