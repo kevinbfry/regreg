@@ -95,7 +95,7 @@ def signed_basis_vector(j, sign, p):
     v[j] = sign
     return v
 
-def lasso_knot(X, R, soln, L, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*50 + [1.e-8]*200):
+def lasso_knot(X, R, soln, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*50 + [1.e-8]*200):
     """
     Find an approximate LASSO knot
     """
@@ -107,7 +107,6 @@ def lasso_knot(X, R, soln, L, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*
 
     if which.shape[0] > 1:
         tangent_vectors = [signed_basis_vector(v, s[v], p) - soln for v in which[1:]]
-        print 'tan', len(tangent_vectors)
     else:
         tangent_vectors = None
 
@@ -124,7 +123,9 @@ def lasso_knot(X, R, soln, L, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*
     initial_primal[:-1] = soln
     initial_primal[-1] = np.fabs(soln).sum()
 
-    Mplus = linear_fractional_nesta(-(X.adjoint_map(R).copy()-alpha*L), 
+    U = X.adjoint_map(R).copy()
+    L = np.fabs(U).max()
+    Mplus = linear_fractional_nesta(-(U-alpha*L), 
                                         alpha, 
                                         epigraph, 
                                         tol=1.e-6,
@@ -133,7 +134,7 @@ def lasso_knot(X, R, soln, L, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*
                                         min_iters=10)
 
     if np.fabs(alpha).max() > 1.001:
-        Mminus = linear_fractional_nesta(-(X.adjoint_map(R).copy()-alpha*L), 
+        Mminus = linear_fractional_nesta(-(U-alpha*L), 
                                              alpha, 
                                              epigraph, 
                                              tol=1.e-6,
