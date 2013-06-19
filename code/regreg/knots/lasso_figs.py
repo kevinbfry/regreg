@@ -29,7 +29,7 @@ def fig(X, fname, nsim=10000):
     IP = get_ipython()
     P = [simulate_null(X) for _ in range(nsim)]
     IP.magic('load_ext rmagic')
-    IP.magic('%R -i P')
+    IP.magic('R -i P')
     IP.run_cell_magic(u'R', u'', '''
 pdf('%s')
 qqplot(P, runif(%d), xlab='P-value', ylab='Uniform', pch=23, cex=0.5, bg='red')
