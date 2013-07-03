@@ -1,4 +1,5 @@
 import regreg.knots.lasso as K
+import regreg.api as rr
 from regreg.affine import fused_lasso 
 import regreg.affine as ra
 from scipy.stats import chi
@@ -15,19 +16,28 @@ def simulate_null(X):
     # find something proportional to first nontrivial
     # solution
 
-    maximizer = np.argmax(np.fabs(G))
-    soln = np.zeros(p)
-    soln[maximizer] = np.sign(G[maximizer])
-    L, Mplus, Mminus, _, _, var = K.lasso_knot(X, Z, soln)
+    loss = rr.squared_error(X, Z)
+    penalty = rr.l1norm(X.shape[1], lagrange=0.995*L)
+    problem = rr.simple_problem(loss, penalty)
+    soln = problem.solve()
+
+    L, Mplus, Mminus, _, _, var = K.lasso_knot(X, Z, soln, tol=1.e-10)
+    L2, Mplus2, Mminus2, _, _, var = K.lasso_knot_covstat(X, Z, soln)
+    print L, L2, 'Lmax'
+    print Mplus, Mplus2, 'M+'
+    print Mminus, Mminus2, 'M-'
     k = 1
     sd = np.sqrt(var) * sigma
     pval = (chi.cdf(Mminus / sd, k) - chi.cdf(L / sd, k)) / (chi.cdf(Mminus / sd, k) - chi.cdf(Mplus / sd, k))
-
+    print pval
     return pval
 
 def fig(X, fname, nsim=10000):
     IP = get_ipython()
-    P = [simulate_null(X) for _ in range(nsim)]
+    P = []
+    for _ in range(nsim):
+        P.append(simulate_null(X))
+        print np.mean(P), np.std(P)
     IP.magic('load_ext rmagic')
     IP.magic('R -i P')
     IP.run_cell_magic(u'R', u'', '''
@@ -63,6 +73,7 @@ def fig4(nsim=10000):
 
 def fig5(nsim=10000):
     IP = get_ipython()
+    IP.magic('load_ext rmagic')
     IP.run_cell_magic('R', '-o X', 
 '''
 library(lars)

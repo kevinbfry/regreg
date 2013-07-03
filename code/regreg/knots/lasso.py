@@ -1,7 +1,9 @@
 import regreg.api as rr
 import numpy as np
 
-from regreg.knots import find_alpha, linear_fractional_nesta
+from regreg.knots import (find_alpha, 
+                          linear_fractional_nesta, 
+                          linear_fractional_tfocs)
 
 def lasso_knot_covstat(X, R, soln, tol=1.e-6):
     """
@@ -95,7 +97,7 @@ def signed_basis_vector(j, sign, p):
     v[j] = sign
     return v
 
-def lasso_knot(X, R, soln, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*50 + [1.e-8]*200):
+def lasso_knot(X, R, soln, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*50 + [1.e-8]*200, tol=1.e-7, nesta=True):
     """
     Find an approximate LASSO knot
     """
@@ -113,7 +115,7 @@ def lasso_knot(X, R, soln, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*50 
     alpha, var = find_alpha(soln, X, tangent_vectors)
     
     # in actually finding M^+ we don't have to subtract the conditional 
-    # expectation of the tangent parta, as it will be zero at eta that
+    # expectation of the tangent part, as it will be zero at eta that
     # achieves L1
 
     p = soln.shape[0]
@@ -125,24 +127,42 @@ def lasso_knot(X, R, soln, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*50 
 
     U = X.adjoint_map(R).copy()
     L = np.fabs(U).max()
-    Mplus = linear_fractional_nesta(-(U-alpha*L), 
-                                        alpha, 
-                                        epigraph, 
-                                        tol=1.e-6,
-                                        epsilon=epsilon,
-                                        initial_primal=initial_primal,
-                                        min_iters=10)
+    if nesta:
+        Mplus = linear_fractional_nesta(-(U-alpha*L), 
+                                         alpha, 
+                                         epigraph, 
+                                         tol=tol,
+                                         epsilon=epsilon,
+                                         initial_primal=initial_primal,
+                                         min_iters=10)
+    else:
+        Mplus = linear_fractional_tfocs(-(U-alpha*L), 
+                                         alpha, 
+                                         epigraph, 
+                                         tol=tol,
+                                         epsilon=epsilon,
+                                         min_iters=10)
 
     if np.fabs(alpha).max() > 1.001:
-        Mminus = linear_fractional_nesta(-(U-alpha*L), 
-                                             alpha, 
-                                             epigraph, 
-                                             tol=1.e-6,
-                                             sign=-1,
-                                             epsilon=epsilon,
-                                             initial_primal=initial_primal,
-                                             min_iters=10)
-
+        if nesta:
+            Mminus = linear_fractional_nesta(-(U-alpha*L), 
+                                                 alpha, 
+                                                 epigraph, 
+                                                 tol=tol,
+                                                 sign=-1,
+                                                 epsilon=epsilon,
+                                                 initial_primal=initial_primal,
+                                                 min_iters=10)
+        else:
+            Mminus = linear_fractional_tfocs(-(U-alpha*L), 
+                                                 alpha, 
+                                                 epigraph, 
+                                                 tol=tol,
+                                                 sign=-1,
+                                                 epsilon=epsilon,
+                                                 initial_primal=initial_primal,
+                                                 min_iters=10)
+            
     else:
         Mminus = np.inf
 
@@ -173,17 +193,15 @@ def test_main():
 
     # <codecell>
 
-
     find_next_knot_lasso(X_lasso, resid_lasso, soln_lasso, lagrange_lasso)
 
     # <codecell>
 
 
-
-    L, Mplus, Mminus, alpha, tv, var = lasso_knot(X_lasso, resid_lasso, soln_lasso, lagrange_lasso)
+    L, Mplus, Mminus, alpha, tv, var = lasso_knot(X_lasso, resid_lasso, soln_lasso)
     print Mplus, Mminus
     print ((L, Mplus), find_next_knot_lasso(X_lasso, resid_lasso, soln_lasso, lagrange_lasso))
-    print lasso_knot_covstat(X_lasso, resid_lasso, soln_lasso, lagrange_lasso)[:3]
+    print lasso_knot_covstat(X_lasso, resid_lasso, soln_lasso)[:3]
 
     rpy.r.assign('X', X_lasso)
     rpy.r.assign('Y', Y_lasso)
@@ -213,9 +231,9 @@ def test_main():
 
     lagrange_lasso = 0.99 * np.fabs(np.dot(X_lasso.T, Y_lasso)).max()
     soln_lasso, resid_lasso = solve_lasso(X_lasso, Y_lasso, lagrange_lasso, tol=1.e-13)
-    L, Mplus, Mminus, alpha, tv, var = lasso_knot(X_lasso, resid_lasso, soln_lasso, lagrange_lasso)
+    L, Mplus, Mminus, alpha, tv, var = lasso_knot(X_lasso, resid_lasso, soln_lasso)
     print Mplus, Mminus
-    print lasso_knot_covstat(X_lasso, resid_lasso, soln_lasso, lagrange_lasso)[:3]
+    print lasso_knot_covstat(X_lasso, resid_lasso, soln_lasso)[:3]
 
     # print ((L, Mplus), find_next_knot_lasso(X_lasso, resid_lasso, soln_lasso, lagrange_lasso))
     # rpy.r.assign('X', X_lasso)

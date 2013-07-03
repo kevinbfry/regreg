@@ -85,7 +85,8 @@ def linear_fractional_tfocs(a, b, epigraph, sign=1., tol=1.e-5, max_its=1000, ep
         w_prev, value = w_next, updated
     return value
 
-def linear_fractional_nesta(a, b, epigraph, sign=1., tol=1.e-5, max_its=1000, epsilon=[1.e-4]*10, min_iters=10,
+def linear_fractional_nesta(a, b, epigraph, sign=1., tol=1.e-5, 
+                            max_its=1000, epsilon=[1.e-4]*10, min_iters=10,
                             initial_primal=None,
                             initial_dual=None):
     """
@@ -174,7 +175,6 @@ def find_alpha(soln, X, tangent_vectors=None):
     alpha = X.adjoint_map(alpha).copy()
 
     return alpha, conditional_variance
-
 
 def eta_step(gh, b, a, w_0, mu, sign=1):
     y_0, z_0 = w_0[:-1], w_0[-1]
