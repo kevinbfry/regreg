@@ -21,15 +21,12 @@ def simulate_null(X):
     problem = rr.simple_problem(loss, penalty)
     soln = problem.solve()
 
-    L, Mplus, Mminus, _, _, var = K.lasso_knot(X, Z, soln, tol=1.e-10)
-    L2, Mplus2, Mminus2, _, _, var = K.lasso_knot_covstat(X, Z, soln)
-    print L, L2, 'Lmax'
-    print Mplus, Mplus2, 'M+'
-    print Mminus, Mminus2, 'M-'
+    L, Mplus, Mminus, _, _, var, _, _, _ = K.lasso_knot(X, Z, soln, tol=1.e-10,
+ method='admm')
     k = 1
     sd = np.sqrt(var) * sigma
     pval = (chi.cdf(Mminus / sd, k) - chi.cdf(L / sd, k)) / (chi.cdf(Mminus / sd, k) - chi.cdf(Mplus / sd, k))
-    print pval
+
     return pval
 
 def fig(X, fname, nsim=10000):
@@ -37,7 +34,6 @@ def fig(X, fname, nsim=10000):
     P = []
     for _ in range(nsim):
         P.append(simulate_null(X))
-        print np.mean(P), np.std(P)
     IP.magic('load_ext rmagic')
     IP.magic('R -i P')
     IP.run_cell_magic(u'R', u'', '''

@@ -84,7 +84,7 @@ def linear_fractional_tfocs(a, b, epigraph, sign=1., tol=1.e-5, max_its=1000, ep
             break
         w_0 = update_w_0(w_next, w_prev, idx)
         w_prev, value = w_next, updated
-    return value
+    return value, None
 
 def linear_fractional_nesta(a, b, epigraph, sign=1., tol=1.e-5, 
                             max_iters=1000, epsilon=[1.e-4]*10, min_iters=10,
@@ -150,7 +150,7 @@ def linear_fractional_nesta(a, b, epigraph, sign=1., tol=1.e-5,
                     initial_primal=initial_primal,
                     initial_dual=initial_dual)[0]
     epigraph.quadratic = oldQ
-    return (coef[:-1]*a).sum()
+    return (coef[:-1]*a).sum(), coef[:-1] / coef[-1]
 
 def linear_fractional_admm(a, b, epigraph, sign=1., tol=1.e-5, rho=1, 
                            max_iters=1000, min_iters=10,
@@ -229,7 +229,7 @@ def linear_fractional_admm(a, b, epigraph, sign=1., tol=1.e-5, rho=1,
                 rho=rho)
     value = linear_constraint.objective(soln) + epigraph.objective(soln)
 
-    return value
+    return value, soln[:-1] / soln[-1]
 
 def find_alpha(soln, X, tangent_vectors=None):
     """

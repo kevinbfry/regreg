@@ -54,7 +54,6 @@ def admm(atom1, atom2,
 
         value = updated_value
 
-    print x, z
     return z
 
 def test_admm():
