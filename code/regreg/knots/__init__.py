@@ -20,6 +20,7 @@ This module contains functions to solve two problems:
 import warnings
 import numpy as np
 import regreg.api as rr, regreg.affine as ra
+from .admm import admm
 
 def epigraph_linear(epigraph, D, Q, initial_primal=None, initial_dual=None,
                     epsilon=[1.e-5]*100, min_iters=20):
@@ -78,7 +79,7 @@ def linear_fractional_tfocs(a, b, epigraph, sign=1., tol=1.e-5, max_its=1000, ep
     
     value = np.inf
     for idx, eps in enumerate(epsilon):
-        w_next, updated = solve_dual_block(b, a, w_0, eps, epigraph, tol=tol, max_its=max_its, sign=sign)[2:]
+        w_next, updated = solve_dual_block(b, a, w_0, eps, epigraph, tol=tol, max_iters=max_iters, sign=sign)[2:]
         if np.fabs(value - updated) < tol * np.fabs(updated) and idx >= min_iters:
             break
         w_0 = update_w_0(w_next, w_prev, idx)
@@ -86,7 +87,7 @@ def linear_fractional_tfocs(a, b, epigraph, sign=1., tol=1.e-5, max_its=1000, ep
     return value
 
 def linear_fractional_nesta(a, b, epigraph, sign=1., tol=1.e-5, 
-                            max_its=1000, epsilon=[1.e-4]*10, min_iters=10,
+                            max_iters=1000, epsilon=[1.e-4]*10, min_iters=10,
                             initial_primal=None,
                             initial_dual=None):
     """
@@ -151,6 +152,84 @@ def linear_fractional_nesta(a, b, epigraph, sign=1., tol=1.e-5,
     epigraph.quadratic = oldQ
     return (coef[:-1]*a).sum()
 
+def linear_fractional_admm(a, b, epigraph, sign=1., tol=1.e-5, rho=1, 
+                           max_iters=1000, min_iters=10,
+                           initial=None):
+    """
+    Solve the problem
+
+    .. math::
+
+        \minimize_{y,z} y^Ta
+
+    subject to $(y,z) \in \mathbf{epi}({\cal P})$ and the equality constraint 
+    $z-b^Ty=s$ with s in [1,-1].
+
+    Inputs
+    ======
+
+    a, b: np.float
+
+    sign: np.float (usually [1,-1])
+
+    epigraph : 
+          epigraph constraint whose proximal map projects onto the epigraph
+
+    epsilon : np.float
+          a sequence of epsilons for the smoothing
+
+    tol : float
+          When to stop, based on objective value decreasing.
+
+    rho : float
+          ADMM parameter
+
+    min_iters : int
+          minimum number of ADMM iterations
+
+    max_iters : int
+          minimum number of ADMM iterations
+
+    Outputs
+    =======
+
+    y : np.float
+
+    z : float
+         Solution with y = yz[:-1], z = yz[-1], and x can be found as x = y / z
+
+    value : float
+         The optimal value
+    """
+
+    a, b = np.asarray(a), np.asarray(b)
+    p = a.shape[0]
+    a_full = np.zeros(p+1)
+    a_full[:-1] = a
+    
+    b_full = np.zeros(p+1)
+    b_full[:-1] = -b
+    b_full[-1] = 1.
+
+    n_full = b_full / np.linalg.norm(b_full)
+
+    linear_constraint = rr.projection_complement((p+1,),
+                                                 n_full.reshape((1,-1)),
+                                                 offset=sign * b_full / np.linalg.norm(b_full)**2) 
+
+    if initial is not None:
+        epigraph.coefs[:] = initial
+        linear_constraint.coefs[:] = initial
+
+    Q = rr.identity_quadratic(0,0,a_full,0)
+    linear_constraint.quadratic = Q
+
+    soln = admm(linear_constraint, epigraph, tol=tol, min_iters=min_iters,
+                max_iters=max_iters,
+                rho=rho)
+    value = linear_constraint.objective(soln) + epigraph.objective(soln)
+
+    return value
 
 def find_alpha(soln, X, tangent_vectors=None):
     """
@@ -192,11 +271,11 @@ def gh_step(eta, b, a, w_0, mu, epigraph):
     U = epigraph.cone_prox(W)
     return W - U
 
-def solve_dual_block(b, a, w_0, mu, epigraph, sign=1, tol=1.e-6, max_its=1000):
+def solve_dual_block(b, a, w_0, mu, epigraph, sign=1, tol=1.e-6, max_iters=1000):
     eta = 0
     gh = np.zeros_like(w_0)
     
-    for idx in range(max_its):
+    for idx in range(max_iters):
         new_eta = eta_step(gh, b, a, w_0, mu, sign=sign)
         new_gh = gh_step(new_eta, b, a, w_0, mu, epigraph)
         if ((np.linalg.norm(new_gh - gh) < tol * max(1, np.linalg.norm(gh)))
@@ -205,8 +284,8 @@ def solve_dual_block(b, a, w_0, mu, epigraph, sign=1, tol=1.e-6, max_its=1000):
         eta = new_eta
         gh = new_gh
         
-    if idx == max_its-1:
-        warnings.warn('algorithm did not converge after %d steps' % max_its)
+    if idx == max_iters-1:
+        warnings.warn('algorithm did not converge after %d steps' % max_iters)
     
     g, h = gh[:-1], gh[-1]
     primal = np.zeros_like(w_0)

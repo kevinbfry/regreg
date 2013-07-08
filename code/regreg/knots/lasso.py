@@ -3,7 +3,8 @@ import numpy as np
 
 from regreg.knots import (find_alpha, 
                           linear_fractional_nesta, 
-                          linear_fractional_tfocs)
+                          linear_fractional_tfocs,
+                          linear_fractional_admm)
 
 def lasso_knot_covstat(X, R, soln, tol=1.e-6):
     """
@@ -11,7 +12,9 @@ def lasso_knot_covstat(X, R, soln, tol=1.e-6):
     """
     X = rr.astransform(X)
     p = X.input_shape[0]
-    soln = soln / np.fabs(soln).sum()
+    l1soln = np.fabs(soln).sum()
+    if l1soln > 0:
+        soln = soln / l1soln
     U = X.adjoint_map(R).copy()
     L = np.fabs(U).max()
     which = np.nonzero(np.fabs(np.fabs(U) - L) < tol * L)[0]
@@ -44,7 +47,7 @@ def lasso_knot_covstat(X, R, soln, tol=1.e-6):
     Mminus[-1] = (num * keep / (den + (1 - keep)))[den < 0]
     
     mplus = np.hstack([Mplus[1],Mplus[-1]])
-    Mplus = np.max(mplus[mplus < L]) # I think the condition is not necessary
+    Mplus = np.max(mplus[mplus < L]) # this check may not be necessary
     
     mminus = []
     if Mminus[1].shape:
@@ -135,6 +138,12 @@ def lasso_knot(X, R, soln, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*50 
                                          epsilon=epsilon,
                                          initial_primal=initial_primal,
                                          min_iters=10)
+        Mplus2 = linear_fractional_admm(-(U-alpha*L), 
+                                         alpha, 
+                                         epigraph, 
+                                         tol=tol,
+                                         max_its=500)
+        print Mplus, Mplus2
     else:
         Mplus = linear_fractional_tfocs(-(U-alpha*L), 
                                          alpha, 
