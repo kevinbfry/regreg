@@ -25,7 +25,7 @@ def lasso_knot_covstat(X, R, soln, tol=1.e-6):
     which = np.nonzero(np.fabs(np.fabs(U) - L) < tol * L)[0]
     if l1soln == 0:
         soln = np.zeros(X.input_shape)
-        soln[which] = 1. / which.shape[0]
+        soln[which] = np.sign(U)[which] / which.shape[0]
     s = np.sign(soln)
 
     if which.shape[0] > 1:
@@ -78,7 +78,7 @@ def lasso_knot_covstat(X, R, soln, tol=1.e-6):
         
     return (L, Mplus, Mminus, alpha, tangent_vectors, var, U, alpha)
 
-L, Mplus, Mminus, alpha, tangent_vectors, var, U, alpha = lasso_knot_covstat(X, Y, np.zeros(400))
+L, Mplus, Mminus, alpha, tangent_vectors, var, U, alpha = lasso_knot_covstat(X, Y, np.zeros(p))
 
 epigraph = rr.l1_epigraph(p+1)
 
@@ -86,7 +86,6 @@ initial = np.zeros(p+1)
 A = np.argmax(np.fabs(U))
 
 for _ in range(1):
-    initial = np.random.standard_normal(p+1)
-    print -K.linear_fractional_admm(-np.sign(U[A])*(U-alpha*L), alpha, epigraph, tol=1.e-5, rho=1, initial=initial, min_iters=1000,
-                                     sign=np.sign(U[A])), Mplus, L, np.sign(U[A])
+    #initial = np.random.standard_normal(p+1)
+    print -K.linear_fractional_admm(-(U-alpha*L), alpha, epigraph, tol=1.e-10, rho=2*np.sqrt(p), initial=initial, min_iters=100), Mplus, L, np.sign(U[A])
 

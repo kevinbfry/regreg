@@ -18,6 +18,9 @@ def lasso_knot_covstat(X, R, soln, tol=1.e-6):
     U = X.adjoint_map(R).copy()
     L = np.fabs(U).max()
     which = np.nonzero(np.fabs(np.fabs(U) - L) < tol * L)[0]
+    if l1soln == 0:
+        soln = np.zeros(X.input_shape)
+        soln[which] = np.sign(U)[which] / which.shape[0]
     s = np.sign(soln)
 
     if which.shape[0] > 1:
@@ -100,14 +103,22 @@ def signed_basis_vector(j, sign, p):
     v[j] = sign
     return v
 
-def lasso_knot(X, R, soln, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*50 + [1.e-8]*200, tol=1.e-7, nesta=True):
+def lasso_knot(X, R, soln, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*50 + [1.e-8]*200, tol=1.e-7, method='nesta'):
     """
     Find an approximate LASSO knot
     """
+
     X = rr.astransform(X)
     p = X.input_shape[0]
-    soln = soln / np.fabs(soln).sum()
-    which = np.nonzero(soln)[0]
+    l1soln = np.fabs(soln).sum()
+    if l1soln > 0:
+        soln = soln / l1soln
+    U = X.adjoint_map(R).copy()
+    L = np.fabs(U).max()
+    which = np.nonzero(np.fabs(np.fabs(U) - L) < tol * L)[0]
+    if l1soln == 0:
+        soln = np.zeros(X.input_shape)
+        soln[which] = np.sign(U)[which] / which.shape[0]
     s = np.sign(soln)
 
     if which.shape[0] > 1:
@@ -130,7 +141,7 @@ def lasso_knot(X, R, soln, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*50 
 
     U = X.adjoint_map(R).copy()
     L = np.fabs(U).max()
-    if nesta:
+    if method == 'nesta':
         Mplus = linear_fractional_nesta(-(U-alpha*L), 
                                          alpha, 
                                          epigraph, 
@@ -138,19 +149,21 @@ def lasso_knot(X, R, soln, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*50 
                                          epsilon=epsilon,
                                          initial_primal=initial_primal,
                                          min_iters=10)
-        Mplus2 = linear_fractional_admm(-(U-alpha*L), 
-                                         alpha, 
-                                         epigraph, 
-                                         tol=tol,
-                                         max_its=500)
-        print Mplus, Mplus2
-    else:
+    elif method == 'tfocs':
         Mplus = linear_fractional_tfocs(-(U-alpha*L), 
                                          alpha, 
                                          epigraph, 
                                          tol=tol,
                                          epsilon=epsilon,
                                          min_iters=10)
+    elif method == 'admm':
+        Mplus = linear_fractional_admm(-(U-alpha*L), 
+                                         alpha, 
+                                         epigraph, 
+                                         tol=tol,
+                                         min_iters=10)
+    else:
+        raise ValueError('method must be one of ["nesta", "tfocs", "admm"]')
 
     if np.fabs(alpha).max() > 1.001:
         if nesta:
