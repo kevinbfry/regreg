@@ -5,6 +5,8 @@ import regreg.affine as ra
 from scipy.stats import chi
 import numpy as np, random
 
+import mpmath
+
 def simulate_null(X, groups, weights={}, orthonormal=False):
 
     if orthonormal:
@@ -35,11 +37,29 @@ def simulate_null(X, groups, weights={}, orthonormal=False):
                                                     weights=weights)
 
     Mminus = max(Mminus, L)
-    print Mminus, L, Mplus
+    if Mplus >= L or Mminus <= L or Mplus >= Mminus:
+        stop
     k = kmax
     sd = np.sqrt(var) * sigma
-    pval = (chi.cdf(Mminus / sd, k) - chi.cdf(L / sd, k)) / (chi.cdf(Mminus / sd, k) - chi.cdf(Mplus / sd, k))
-    print pval
+    pval = (1 - chi.cdf(L / sd, k) / chi.cdf(Mminus / sd, k)) / (1 - chi.cdf(Mplus / sd, k) / chi.cdf(Mminus / sd, k))
+    if pval == 0: # chi.cdf(L / sd, k)== 1
+        # use densities 
+        mpmath.mp.dps = 100
+        vL = mpmath.mp.convert(L/sd)
+        vMplus = mpmath.mp.convert(Mplus/sd)
+        vMminus = mpmath.mp.convert(Mminus/sd)
+        num = ((vL / vMplus)**(k-1) * mpmath.exp((vMplus)**2/2-(vL)**2/2) -
+                 (vMminus / vMplus)**(k-1) * mpmath.exp((vMplus)**2/2-(vMminus)**2/2))
+        den = (mpmath.mp.one -
+                 (vMminus / vMplus)**(k-1) * mpmath.exp((vMplus)**2/2-(vMminus)**2/2))
+        pval = float(num / den)
+        stop
+        pval = 0
+
+    if np.isnan(pval):
+        pval = 0
+    if pval > 1 or pval < 0:
+        stop
     return pval
 
 def fig(X, fname, groups, nsim=10000, weights={}):
@@ -49,12 +69,10 @@ def fig(X, fname, groups, nsim=10000, weights={}):
         pval = simulate_null(X, groups, weights=weights)
         P.append(pval)
         pp = np.array(P)
-        mask = ~np.isnan(pp) + np.isfinite(pp)
-        print np.mean(pp[mask]), np.std(pp[mask]), 'mean'
+        pp = pp[pp != 0]
+        print np.mean(pp), np.std(pp), 'mean'
     P = np.array(P)
-    mask = ~np.isnan(P) + np.isfinite(P)
-    P = P[mask]
-    P = np.clip(P,0,1)
+    P = P[P != 0]
     IP.magic('load_ext rmagic')
     IP.magic('R -i P')
     IP.run_cell_magic(u'R', u'', '''

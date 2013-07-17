@@ -97,12 +97,17 @@ def glasso_knot(X, R, groups, soln,
                 weight = dual.weights[label]
                 V.append(subproblem(a[group] / weight,
                                     b[group] / weight))
+                print (subproblem(a[group] / weight,
+                                  b[group] / weight),
+                       trignometric_form(a[group], b[group], weight)[0])
+                
         Mplus, next_soln = -np.nanmax(V), None
 
     else:
         raise ValueError('method must be one of ["nesta", "tfocs", "admm", "explicit"]')
 
     if dual.seminorm(alpha) > 1.001:
+
         if method == 'nesta':
             Mminus, _ = linear_fractional_nesta(-(U-alpha*L), 
                                                  alpha, 
@@ -122,7 +127,7 @@ def glasso_knot(X, R, groups, soln,
                                                  initial_primal=initial_primal,
                                                  min_iters=min_iters)
             
-        elif method in ['admm', 'explicit']:
+        elif method == 'admm':
             Mminus, _ = linear_fractional_admm(-(U-alpha*L), 
                                                 alpha, 
                                                 epigraph, 
@@ -130,15 +135,18 @@ def glasso_knot(X, R, groups, soln,
                                                 sign=-1,
                                                 rho=np.sqrt(p),
                                                 min_iters=min_iters)
+        elif method == 'explicit':
 
-            if method == 'explicit':
-                Mplus, next_soln = linear_fractional_admm(-(U-alpha*L), 
-                                                           alpha, 
-                                                       epigraph, 
-                                                       tol=tol,
-                                                       rho=np.sqrt(p),
-                                                       min_iters=min_iters)
+            a = U - alpha * L
+            b = alpha
 
+            V = []
+            for label in dual.group_labels:
+                if label != gmax:
+                    group = dual.groups == label
+                    weight = dual.weights[label]
+                    V.append(trignometric_form(a[group], b[group], weight)[1])
+            Mminus, next_soln = np.nanmin(V), None
         else:
             raise ValueError('method must be one of ["nesta", "tfocs", "admm", "explicit"]')
     else:
@@ -498,3 +506,64 @@ def test_main():
     """)
 
     print L[:2]
+
+def trignometric_form(num, den, weight):
+    a, b, w = num, den, weight # shorthand
+
+    Ctheta = (a*b).sum() / np.sqrt((a**2).sum() * (b**2).sum())
+    Stheta = np.sqrt(1-Ctheta**2)
+    theta = np.arccos(Ctheta)
+
+    Sphi = np.linalg.norm(den) * Stheta / w
+    phi1 = np.arcsin(Sphi)
+    phi2 = np.pi - phi1
+
+    V1 = np.linalg.norm(a) * np.cos(phi1) / (w - np.linalg.norm(b) * np.cos(theta-phi1))
+    V2 = np.linalg.norm(a) * np.cos(phi2) / (w - np.linalg.norm(b) * np.cos(theta-phi2))
+
+    if np.linalg.norm(b) < w:
+        return max([V1,V2]), np.inf
+    else:
+        return min([V1,V2]), max([V1,V2])
+
+
+def q_0(M,H,nsim=100):
+    '''
+    Assumes H are eigenvalues of a symmetric matrix. Computes 
+    an approximation of 
+
+    .. math::
+
+        e^{-M^2/2}\int_0^{\infty} \exp \left(\sum_{i=1}^m \log(z+M+\lambda_i(H)) - M z \right)  \frac{e^{-z^2/2}}{\sqrt{2\pi}} \; dz
+
+    The approximation is up to some multiplicative factor C chosen to prevent overflow errors.
+
+    '''
+    Z = np.fabs(np.random.standard_normal(nsim))
+    exponent = np.log(np.add.outer(Z,H) + M).sum(1) - M*Z - M**2/2.
+    C = exponent.max()
+    return np.exp(exponent - C).mean(), C
+
+def Q_0(M,H,t,nsim=100):
+    """
+    Assumes H are eigenvalues of a symmetric matrix. Computes 
+    an approximation of 
+    
+    .. math::
+    
+        \frac{q_0(M+t,H)}{q_0(M,H)}
+
+    where
+
+    .. math::
+
+        q_0(M,H) = e^{-M^2/2}\int_0^{\infty} \exp \left(\sum_{i=1}^m \log(z+M+\lambda_i(H)) - M z \right)  \frac{e^{-z^2/2}}{\sqrt{2\pi}} \; dz
+
+    
+    """
+    
+    exponent_1, C1 = q_0(M+t, H, nsim=nsim)
+    exponent_2, C2 = q_0(M, H, nsim=nsim)
+    
+    return np.exp(C1-C2) * exponent_1 / exponent_2
+
