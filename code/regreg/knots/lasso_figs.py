@@ -1,4 +1,5 @@
 import regreg.knots.lasso as K
+import regreg.api as rr
 from regreg.affine import fused_lasso 
 import regreg.affine as ra
 from scipy.stats import chi
@@ -15,10 +16,10 @@ def simulate_null(X):
     # find something proportional to first nontrivial
     # solution
 
-    maximizer = np.argmax(np.fabs(G))
-    soln = np.zeros(p)
-    soln[maximizer] = np.sign(G[maximizer])
-    L, Mplus, Mminus, alpha, tangent_vectors, var, _, _, _ = K.lasso_knot_covstat(X, Z, soln)
+    soln = np.zeros(X.shape[1])
+
+    L, Mplus, Mminus, _, _, var, _, _, _ = K.lasso_knot(X, Z, soln, tol=1.e-10,
+ method='explicit')
     k = 1
     sd = np.sqrt(var) * sigma
     pval = (chi.cdf(Mminus / sd, k) - chi.cdf(L / sd, k)) / (chi.cdf(Mminus / sd, k) - chi.cdf(Mplus / sd, k))
@@ -27,7 +28,9 @@ def simulate_null(X):
 
 def fig(X, fname, nsim=10000):
     IP = get_ipython()
-    P = [simulate_null(X) for _ in range(nsim)]
+    P = []
+    for _ in range(nsim):
+        P.append(simulate_null(X))
     IP.magic('load_ext rmagic')
     IP.magic('R -i P')
     IP.run_cell_magic(u'R', u'', '''
@@ -37,32 +40,33 @@ abline(0,1, lwd=3, lty=2)
 dev.off()
 ''' % (fname, nsim))
 
-def fig1():
+def fig1(nsim=10000):
     X = np.arange(6).reshape((3,2))
-    fig(X, 'small_lasso.pdf')
+    fig(X, 'small_lasso.pdf', nsim=nsim)
 
-def fig2():
+def fig2(nsim=10000):
     n, p = 100, 10000
     X = np.random.standard_normal((n,p)) + np.random.standard_normal(n)[:,np.newaxis]
     X -= X.mean(0)
     X /= X.std(0)
-    fig(X, 'fat_lasso.pdf')
+    fig(X, 'fat_lasso.pdf', nsim=nsim)
 
-def fig3():
+def fig3(nsim=10000):
     n, p = 10000, 100
     X = np.random.standard_normal((n,p)) + np.random.standard_normal(n)[:,np.newaxis]
     X -= X.mean(0)
     X /= X.std(0)
-    fig(X, 'tall_lasso.pdf')
+    fig(X, 'tall_lasso.pdf', nsim=nsim)
 
-def fig4():
+def fig4(nsim=10000):
     n = 500
     D = fused_lasso.trend_filter(n)
     X = ra.todense(D)
-    fig(X, 'fused_lasso.pdf')
+    fig(X, 'fused_lasso.pdf', nsim=nsim)
 
-def fig5():
+def fig5(nsim=10000):
     IP = get_ipython()
+    IP.magic('load_ext rmagic')
     IP.run_cell_magic('R', '-o X', 
 '''
 library(lars)
@@ -70,7 +74,7 @@ data(diabetes)
 X = diabetes$x
 ''')
     X = IP.user_ns['X']
-    fig(X, 'lars_diabetes.pdf')
+    fig(X, 'lars_diabetes.pdf', nsim=nsim)
 
 def produce_figs(seed=0):
     np.random.seed(seed)
