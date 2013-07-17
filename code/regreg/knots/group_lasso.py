@@ -90,14 +90,16 @@ def glasso_knot(X, R, groups, soln,
         a = U - alpha * L
         b = alpha
 
-        V = []
+        Vplus = []
+        Vminus = []
         for label in dual.group_labels:
             if label != gmax:
                 group = dual.groups == label
                 weight = dual.weights[label]
-                V.append(trignometric_form(a[group], b[group], weight)[0])
-                
-        Mplus, next_soln = -np.nanmax(V), None
+                tf = trignometric_form(a[group], b[group], weight)
+                Vplus.append(tf[0])
+                Vminus.append(tf[1])
+        Mplus, next_soln, Mminus = -np.nanmax(Vplus), None, np.nanmin(Vminus)
 
     else:
         raise ValueError('method must be one of ["nesta", "tfocs", "admm", "explicit"]')
@@ -131,17 +133,7 @@ def glasso_knot(X, R, groups, soln,
                                                 rho=np.sqrt(p),
                                                 min_iters=min_iters)
         elif method == 'explicit':
-
-            a = U - alpha * L
-            b = alpha
-
-            V = []
-            for label in dual.group_labels:
-                if label != gmax:
-                    group = dual.groups == label
-                    weight = dual.weights[label]
-                    V.append(trignometric_form(a[group], b[group], weight)[1])
-            Mminus, next_soln = np.nanmin(V), None
+            pass
         else:
             raise ValueError('method must be one of ["nesta", "tfocs", "admm", "explicit"]')
     else:

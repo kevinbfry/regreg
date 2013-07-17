@@ -31,7 +31,6 @@ def fig(X, fname, nsim=10000):
     P = []
     for _ in range(nsim):
         P.append(simulate_null(X))
-        print np.mean(P), np.std(P)
     IP.magic('load_ext rmagic')
     IP.magic('R -i P')
     IP.run_cell_magic(u'R', u'', '''

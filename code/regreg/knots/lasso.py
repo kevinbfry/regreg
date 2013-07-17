@@ -67,7 +67,7 @@ def lasso_knot_covstat(X, R, soln, tol=1.e-6):
     else:
         Mminus = np.inf
         
-    return (L, Mplus, Mminus, alpha, tangent_vectors, var, U, alpha)
+    return (L, Mplus, Mminus, alpha, tangent_vectors, var, U, alpha, None)
 
 def solve_lasso(X, Y, L, tol=1.e-5):
     """
@@ -167,8 +167,12 @@ def lasso_knot(X, R, soln,
                                                    tol=tol,
                                                    rho=np.sqrt(p),
                                                    min_iters=min_iters)
+    elif method == 'explicit':
+        Mplus, Mminus = lasso_knot_covstat(X, R, soln)[1:3]
+        Mplus = -Mplus
+        next_soln = None
     else:
-        raise ValueError('method must be one of ["nesta", "tfocs", "admm"]')
+        raise ValueError('method must be one of ["nesta", "tfocs", "admm", "explicit"]')
 
     if np.fabs(alpha).max() > 1.001:
         if method == 'nesta':
@@ -198,8 +202,10 @@ def lasso_knot(X, R, soln,
                                                 sign=-1,
                                                 rho=np.sqrt(p),
                                                 min_iters=min_iters)
+        elif method == 'explicit':
+            pass
         else:
-            raise ValueError('method must be one of ["nesta", "tfocs", "admm"]')
+            raise ValueError('method must be one of ["nesta", "tfocs", "admm", "explicit"]')
     else:
         Mminus = np.inf
 
@@ -230,7 +236,7 @@ def test_main():
 
     find_next_knot_lasso(X_lasso, resid_lasso, soln_lasso, lagrange_lasso)
 
-    L, Mplus, Mminus, alpha, tv, var = lasso_knot(X_lasso, resid_lasso, soln_lasso)
+    L, Mplus, Mminus, alpha, tv, var, U, alpha, _ = lasso_knot(X_lasso, resid_lasso, soln_lasso)
     print Mplus, Mminus
     print ((L, Mplus), find_next_knot_lasso(X_lasso, resid_lasso, soln_lasso, lagrange_lasso))
     print lasso_knot_covstat(X_lasso, resid_lasso, soln_lasso)[:3]

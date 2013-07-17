@@ -18,7 +18,7 @@ def simulate_null(X):
     maximizer = np.argmax(np.fabs(G))
     soln = np.zeros(p)
     soln[maximizer] = np.sign(G[maximizer])
-    L, Mplus, Mminus, alpha, tangent_vectors, var, _, _ = K.lasso_knot_covstat(X, Z, soln)
+    L, Mplus, Mminus, alpha, tangent_vectors, var, _, _, _ = K.lasso_knot_covstat(X, Z, soln)
     k = 1
     sd = np.sqrt(var) * sigma
     pval = (chi.cdf(Mminus / sd, k) - chi.cdf(L / sd, k)) / (chi.cdf(Mminus / sd, k) - chi.cdf(Mplus / sd, k))
