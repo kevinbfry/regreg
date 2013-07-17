@@ -25,10 +25,7 @@ def simulate_null(X, groups, weights={}, orthonormal=False):
     # find something proportional to first nontrivial
     # solution
 
-    loss = rr.squared_error(X, Z)
-    penalty = rr.group_lasso(groups, weights=weights, lagrange=L)
-    problem = rr.simple_problem(loss, penalty)
-    soln = problem.solve()
+    soln = np.zeros(X.shape[1])
 
     (L1, Mplus, Mminus, _, _, 
      var, U, alpha, _, kmax, wmax) = GL.glasso_knot(X, Z, groups, 
@@ -41,29 +38,22 @@ def simulate_null(X, groups, weights={}, orthonormal=False):
         stop
     k = kmax
     sd = np.sqrt(var) * sigma
-    pval = (1 - chi.cdf(L / sd, k) / chi.cdf(Mminus / sd, k)) / (1 - chi.cdf(Mplus / sd, k) / chi.cdf(Mminus / sd, k))
+    pval = (chi.sf(L / sd, k) - chi.sf(Mminus / sd, k)) / (chi.sf(Mplus / sd, k) - chi.cdf(Mminus / sd, k))
     if pval == 0: # chi.cdf(L / sd, k)== 1
         # use densities 
-        mpmath.mp.dps = 100
-        vL = mpmath.mp.convert(L/sd)
-        vMplus = mpmath.mp.convert(Mplus/sd)
-        vMminus = mpmath.mp.convert(Mminus/sd)
-        num = ((vL / vMplus)**(k-1) * mpmath.exp((vMplus)**2/2-(vL)**2/2) -
-                 (vMminus / vMplus)**(k-1) * mpmath.exp((vMplus)**2/2-(vMminus)**2/2))
-        den = (mpmath.mp.one -
-                 (vMminus / vMplus)**(k-1) * mpmath.exp((vMplus)**2/2-(vMminus)**2/2))
-        pval = float(num / den)
-        stop
-        pval = 0
+        pval = GL.Q_0(L / sd, Mplus / sd, Mminus / sd, [0]*(k-1), nsim=50000)
+    else:
+        pval = GL.Q_0(L / sd, Mplus / sd, Mminus / sd, [0]*(k-1), nsim=10000)
 
     if np.isnan(pval):
-        pval = 0
-    if pval > 1 or pval < 0:
-        stop
+        nanpval
+    if pval > 1:
+        pval = 1
+    if pval < 1.e-10:
+        zeropval
     return pval
 
 def fig(X, fname, groups, nsim=10000, weights={}):
-    IP = get_ipython()
     P = []
     for _ in range(nsim):
         pval = simulate_null(X, groups, weights=weights)
@@ -73,6 +63,10 @@ def fig(X, fname, groups, nsim=10000, weights={}):
         print np.mean(pp), np.std(pp), 'mean'
     P = np.array(P)
     P = P[P != 0]
+    make_fig(fname, P)
+
+def make_fig(fname, P):
+    IP = get_ipython()
     IP.magic('load_ext rmagic')
     IP.magic('R -i P')
     IP.run_cell_magic(u'R', u'', '''
@@ -83,12 +77,9 @@ dev.off()
 ''' % (fname, P.shape[0]))
 
 def fig1(nsim=10000):
-    X = np.arange(12).reshape((3,4)) + np.random.standard_normal((3,4))
-    X = X.T
-    np.random.shuffle(X)
-    X = X.T
+    X = np.arange(12).reshape((3,4)) + 0.1 * np.random.standard_normal((3,4))
     groups = np.array([0,0,1,1])
-    fig(X, 'small_group_lasso.pdf', groups, nsim=nsim, weights={})#{0:0.1})
+    fig(X, 'small_group_lasso.pdf', groups, nsim=nsim, weights={0:0.1})
 
 def fig2(nsim=10000):
     n, p = 100, 10000
@@ -105,6 +96,14 @@ def fig3(nsim=10000):
     X /= X.std(0)
     groups = np.array(range(10)*10)
     fig(X, 'tall_group_lasso.pdf', groups, nsim=nsim)
+
+def fig4(nsim=10000):
+    n, p = 100, 100
+    X = np.random.standard_normal((n,p)) + np.random.standard_normal(n)[:,np.newaxis]
+    X -= X.mean(0)
+    X /= X.std(0)
+    groups = np.array(range(10)*10)
+    fig(X, 'square_group_lasso.pdf', groups, nsim=nsim)
 
 def fig5(nsim=10000):
     IP = get_ipython()

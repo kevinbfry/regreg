@@ -50,7 +50,7 @@ def glasso_knot(X, R, groups, soln,
 
     p = primal.shape[0]
     if kmax > 1:
-        tangent_vectors = [signed_basis_vector(v, 1, p) for v in np.nonzero(which)[0]]
+        tangent_vectors = [signed_basis_vector(v, 1, p) for v in np.nonzero(which)[0]][:-1]
         for tv in tangent_vectors:
             tv[:] = tv - np.dot(tv, soln) * soln / np.linalg.norm(soln)**2
     else:
@@ -95,11 +95,7 @@ def glasso_knot(X, R, groups, soln,
             if label != gmax:
                 group = dual.groups == label
                 weight = dual.weights[label]
-                V.append(subproblem(a[group] / weight,
-                                    b[group] / weight))
-                print (subproblem(a[group] / weight,
-                                  b[group] / weight),
-                       trignometric_form(a[group], b[group], weight)[0])
+                V.append(trignometric_form(a[group], b[group], weight)[0])
                 
         Mplus, next_soln = -np.nanmax(V), None
 
@@ -107,7 +103,6 @@ def glasso_knot(X, R, groups, soln,
         raise ValueError('method must be one of ["nesta", "tfocs", "admm", "explicit"]')
 
     if dual.seminorm(alpha) > 1.001:
-
         if method == 'nesta':
             Mminus, _ = linear_fractional_nesta(-(U-alpha*L), 
                                                  alpha, 
@@ -527,43 +522,63 @@ def trignometric_form(num, den, weight):
         return min([V1,V2]), max([V1,V2])
 
 
-def q_0(M,H,nsim=100):
+def M(H, Vplus, Vminus, mu, sigma, M, nsim=100):
     '''
     Assumes H are eigenvalues of a symmetric matrix. Computes 
     an approximation of 
 
     .. math::
 
-        e^{-M^2/2}\int_0^{\infty} \exp \left(\sum_{i=1}^m \log(z+M+\lambda_i(H)) - M z \right)  \frac{e^{-z^2/2}}{\sqrt{2\pi}} \; dz
+        \int_{V^+}^{V^-} h(z) \det(-\Lambda + z \cdot I) \frac{e^{-(z-\mu)^2/2\sigma^2} \; dz
 
-    The approximation is up to some multiplicative factor C chosen to prevent overflow errors.
+    where $h=1_{[M,\infty)}$ for some $V^+ < M < V^-$
 
     '''
-    Z = np.fabs(np.random.standard_normal(nsim))
-    exponent = np.log(np.add.outer(Z,H) + M).sum(1) - M*Z - M**2/2.
+    
+    Z = np.fabs(np.random.standard_normal(nsim)) * sigma 
+    M = M - mu
+    proportion = (Z < Vminus - u).sum() * 1. / nsim
+    Z = Z[Z < Vminus - u]
+    exponent = np.log(np.add.outer(Z,H) + u).sum(1) - (M*Z - M**2/2.) / sigma**2
     C = exponent.max()
-    return np.exp(exponent - C).mean(), C
+    return np.exp(exponent - C).mean() * proportion, C
 
-def Q_0(M,H,t,nsim=100):
+def Q(H, Vplus, Vminus, mu, sigma, M, nsim=100):
     """
     Assumes H are eigenvalues of a symmetric matrix. Computes 
     an approximation of 
     
     .. math::
     
-        \frac{q_0(M+t,H)}{q_0(M,H)}
+        \frac{q_0(L,Mminus,H)}{q_0(Mplus,Mminus,H)}
 
     where
 
     .. math::
 
-        q_0(M,H) = e^{-M^2/2}\int_0^{\infty} \exp \left(\sum_{i=1}^m \log(z+M+\lambda_i(H)) - M z \right)  \frac{e^{-z^2/2}}{\sqrt{2\pi}} \; dz
+        q_0(M,V,H) = e^{-M^2/2}\int_0^{V-M} \exp \left(\sum_{i=1}^m \log(z+M+\lambda_i(H)) - M z \right)  \frac{e^{-z^2/2}}{\sqrt{2\pi}} \; dz
 
     
     """
     
-    exponent_1, C1 = q_0(M+t, H, nsim=nsim)
-    exponent_2, C2 = q_0(M, H, nsim=nsim)
+    exponent_1, C1 = M(H, Vplus, Vminus, mu, sigma, M, nsim=nsim)
+    exponent_2, C2 = M(H, Vplus, Vminus, mu, sigma, Vminus, nsim=nsim)
     
+    return np.exp(C1-C2) * exponent_1 / exponent_2
+
+def q_0(M, Mminus, H, nsim=100):
+    Z = np.fabs(np.random.standard_normal(nsim))
+    keep = Z < Mminus - M
+    proportion = keep.sum() * 1. / nsim
+    Z = Z[keep]
+    exponent = np.log(np.add.outer(Z, H) + M).sum(1) - M*Z - M**2/2.
+    C = exponent.max()
+    return np.exp(exponent - C).mean() * proportion, C
+
+def Q_0(L, Mplus, Mminus, H, nsim=100):
+
+    exponent_1, C1 = q_0(L, Mminus, H, nsim=nsim)
+    exponent_2, C2 = q_0(Mplus, Mminus, H, nsim=nsim)
+
     return np.exp(C1-C2) * exponent_1 / exponent_2
 

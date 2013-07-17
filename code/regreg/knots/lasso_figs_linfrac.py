@@ -16,13 +16,10 @@ def simulate_null(X):
     # find something proportional to first nontrivial
     # solution
 
-    loss = rr.squared_error(X, Z)
-    penalty = rr.l1norm(X.shape[1], lagrange=L)
-    problem = rr.simple_problem(loss, penalty)
-    soln = problem.solve()
+    soln = np.zeros(X.shape[1])
 
     L, Mplus, Mminus, _, _, var, _, _, _ = K.lasso_knot(X, Z, soln, tol=1.e-10,
- method='admm')
+ method='explicit')
     k = 1
     sd = np.sqrt(var) * sigma
     pval = (chi.cdf(Mminus / sd, k) - chi.cdf(L / sd, k)) / (chi.cdf(Mminus / sd, k) - chi.cdf(Mplus / sd, k))
