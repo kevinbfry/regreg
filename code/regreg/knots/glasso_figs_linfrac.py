@@ -44,13 +44,8 @@ def simulate_null(X, groups, weights={}, orthonormal=False):
         pval = GL.Q_0(L / sd, Mplus / sd, Mminus / sd, [0]*(k-1), nsim=50000)
     else:
         pval = GL.Q_0(L / sd, Mplus / sd, Mminus / sd, [0]*(k-1), nsim=10000)
-
-    if np.isnan(pval):
-        nanpval
     if pval > 1:
         pval = 1
-    if pval < 1.e-10:
-        zeropval
     return pval
 
 def fig(X, fname, groups, nsim=10000, weights={}):
@@ -58,11 +53,7 @@ def fig(X, fname, groups, nsim=10000, weights={}):
     for _ in range(nsim):
         pval = simulate_null(X, groups, weights=weights)
         P.append(pval)
-        pp = np.array(P)
-        pp = pp[pp != 0]
-        print np.mean(pp), np.std(pp), 'mean'
     P = np.array(P)
-    P = P[P != 0]
     make_fig(fname, P)
 
 def make_fig(fname, P):
