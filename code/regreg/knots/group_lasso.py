@@ -1,8 +1,11 @@
-import regreg.api as rr
 import numpy as np
+from scipy.stats import chi
 
-from regreg.knots import find_alpha, linear_fractional_nesta
-from .lasso import find_next_knot_lasso, lasso_knot_covstat
+import regreg.api as rr
+from regreg.knots import (find_alpha, linear_fractional_admm,
+                          linear_fractional_tfocs,
+                          linear_fractional_admm)
+from lasso import signed_basis_vector
 
 def solve_glasso(X, Y, groups, L, tol=1.e-5):
     """
@@ -18,51 +21,130 @@ def solve_glasso(X, Y, groups, L, tol=1.e-5):
     resid = Y - X.linear_map(soln).copy()
     return soln, resid
 
-def glasso_knot(X, R, soln, L, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*50 + [1.e-8]*200):
+def glasso_knot(X, R, groups, soln, 
+                epsilon=([1.e-2] + [1.e-4]*3 + [1.e-5]*3 + 
+                         [1.e-6]*50 + [1.e-8]*200)
+                , tol=1.e-7, method='admm', weights=None,
+                min_iters=10):
     """
     Find an approximate LASSO knot
     """
-    X = rr.astransform(X)
-    p = X.input_shape[0]
-    soln = soln / np.fabs(soln).sum()
-    which = np.nonzero(soln)[0]
-    s = np.sign(soln)
 
-    if which.shape[0] > 1:
-        tangent_vectors = [signed_basis_vector(v, s[v], p) - soln for v in which[1:]]
-        print 'tan', len(tangent_vectors)
+    dual = rr.group_lasso_dual(groups, weights=weights, lagrange=1.)
+    primal = rr.group_lasso(groups, weights=weights, lagrange=1.)
+
+    X = rr.astransform(X)
+    U = X.adjoint_map(R).copy()
+    terms = dual.terms(U)
+    imax = np.argmax(terms)
+    L = terms[imax]
+    gmax = dual.group_labels[imax]
+    wmax = dual.weights[gmax]
+
+    # for this below we are assuming uniqueness of first group
+    which = dual.groups == gmax
+    kmax = which.sum()
+
+    soln = np.zeros(X.input_shape)
+    soln[which] = (U[which] / np.linalg.norm(U[which])) / wmax
+
+    p = primal.shape[0]
+    if kmax > 1:
+        tangent_vectors = [signed_basis_vector(v, 1, p) for v in np.nonzero(which)[0]]
+        for tv in tangent_vectors:
+            tv[:] = tv - np.dot(tv, soln) * soln / np.linalg.norm(soln)**2
     else:
         tangent_vectors = None
-
     alpha, var = find_alpha(soln, X, tangent_vectors)
     
     # in actually finding M^+ we don't have to subtract the conditional 
-    # expectation of the tangent parta, as it will be zero at eta that
+    # expectation of the tangent part, as it will be zero at eta that
     # achieves L1
 
     p = soln.shape[0]
-    epigraph = rr.group_lasso_epigraph(np.arange(p))
+    epigraph = rr.group_lasso_epigraph(groups, weights=weights)
 
-    Mplus = linear_fractional_nesta(-(X.adjoint_map(R).copy()-alpha*L), 
-                                        alpha, 
-                                        epigraph, 
-                                        tol=1.e-6,
-                                        epsilon=epsilon,
-                                        min_iters=10)
+    if method == 'nesta':
+        Mplus, next_soln = linear_fractional_nesta(-(U-alpha*L), 
+                                                    alpha, 
+                                                    epigraph, 
+                                                    tol=tol,
+                                                    epsilon=epsilon,
+                                                    initial_primal=initial_primal,
+                                                    min_iters=min_iters)
+    elif method == 'tfocs':
+        Mplus, next_soln = linear_fractional_tfocs(-(U-alpha*L), 
+                                                    alpha, 
+                                                    epigraph, 
+                                                    tol=tol,
+                                                    epsilon=epsilon,
+                                                    min_iters=min_iters)
+    elif method == 'admm':
+        Mplus, next_soln = linear_fractional_admm(-(U-alpha*L), 
+                                                   alpha, 
+                                                   epigraph, 
+                                                   tol=tol,
+                                                   rho=np.sqrt(p),
+                                                   min_iters=min_iters)
+    elif method == 'explicit':
+        a = U - alpha * L
+        b = alpha
 
-    if np.fabs(alpha).max() > 1.001:
-        Mminus = linear_fractional_nesta(-(X.adjoint_map(R).copy()-alpha*L), 
-                                             alpha, 
-                                             epigraph, 
-                                             tol=1.e-6,
-                                             sign=-1,
-                                             epsilon=epsilon,
-                                             min_iters=10)
+        V = []
+        for label in dual.group_labels:
+            if label != gmax:
+                group = dual.groups == label
+                weight = dual.weights[label]
+                V.append(subproblem(a[group] / weight,
+                                    b[group] / weight))
+        Mplus, next_soln = -np.nanmax(V), None
 
+    else:
+        raise ValueError('method must be one of ["nesta", "tfocs", "admm", "explicit"]')
+
+    if dual.seminorm(alpha) > 1.001:
+        if method == 'nesta':
+            Mminus, _ = linear_fractional_nesta(-(U-alpha*L), 
+                                                 alpha, 
+                                                 epigraph, 
+                                                 tol=tol,
+                                                 sign=-1,
+                                                 epsilon=epsilon,
+                                                 initial_primal=initial_primal,
+                                                 min_iters=min_iters)
+        elif method == 'tfocs':
+            Mminus, _ = linear_fractional_tfocs(-(U-alpha*L), 
+                                                 alpha, 
+                                                 epigraph, 
+                                                 tol=tol,
+                                                 sign=-1,
+                                                 epsilon=epsilon,
+                                                 initial_primal=initial_primal,
+                                                 min_iters=min_iters)
+            
+        elif method in ['admm', 'explicit']:
+            Mminus, _ = linear_fractional_admm(-(U-alpha*L), 
+                                                alpha, 
+                                                epigraph, 
+                                                tol=tol,
+                                                sign=-1,
+                                                rho=np.sqrt(p),
+                                                min_iters=min_iters)
+
+            if method == 'explicit':
+                Mplus, next_soln = linear_fractional_admm(-(U-alpha*L), 
+                                                           alpha, 
+                                                       epigraph, 
+                                                       tol=tol,
+                                                       rho=np.sqrt(p),
+                                                       min_iters=min_iters)
+
+        else:
+            raise ValueError('method must be one of ["nesta", "tfocs", "admm", "explicit"]')
     else:
         Mminus = np.inf
 
-    return (L, -Mplus, Mminus, alpha, tangent_vectors, var)
+    return (L, -Mplus, Mminus, alpha, tangent_vectors, var, U, alpha, next_soln, kmax, wmax)
 
 def maximum_pinned(X_h, w_h, X_g, w_g, P_g, y):
     """
@@ -87,11 +169,8 @@ def maximum_pinned(X_h, w_h, X_g, w_g, P_g, y):
     w_h : float
         Weight for group $h$
 
-    X_g : np.ndarray(np.float)
-        Design matrix for group $g$
-
-    w_g : float
-        Weight for group $g$
+    X_g_w : np.ndarray(np.float)
+        Weighed design matrix for group $g$
 
     P_g : np.ndarray(np.float)
         Projection onto column space of $X_g$. For now, 
@@ -111,32 +190,50 @@ def maximum_pinned(X_h, w_h, X_g, w_g, P_g, y):
     >>> Xh = X[:,G[0]]
     >>> wh = W[0]
     >>> gmax = G[3]
-    >>> Xmax = X[:,gmax]
     >>> wmax = W[3]
-    >>> Pmax = np.dot(X[:,gmax], X[:,gmax].T)
-    >>> maximum_pinned(Xh, wh, X[:,gmax], wmax, Pmax, Y)
+    >>> Xmax = X[:,gmax] / W[3]
+    >>> Pmax = np.dot(Xmax, Xmax.T)
+    >>> maximum_pinned(Xh, wh, Xmax, Pmax, Y)
     1.0096735125191472
 
     """
     u_g = np.dot(X_g.T, y)
     u_g /= np.linalg.norm(u_g)
     
-    a = np.dot(X_h.T, y - np.dot(P_g,y)) / w_h
+    a = np.dot(X_h.T, y - np.dot(P_g,y)) 
     
     X_gu_g = np.dot(X_g, u_g)
-    b = (w_g / w_h) * np.dot(X_h.T, X_gu_g) / (np.linalg.norm(X_gu_g)**2)
+    b = w_g * np.dot(X_h.T, X_gu_g) / (np.linalg.norm(X_gu_g)**2)
     
     a_dot_b = np.dot(a.T,b)
     norm_a = np.linalg.norm(a)
     norm_b = np.linalg.norm(b)
     
-    assert np.linalg.norm(b) <= 1
+    return subproblem(a / w_h, b / w_h)
+
+def subproblem(a, b):
+    """
+    Compute
+
+    .. math::
+    
+       \inf_{\|x\|_2 = 1} \frac{a^Tx}{1-b^Tx}
+    """
+
+    a = a
+    b = b
+
+    a_dot_b = np.dot(a.T,b)
+    norm_a = np.linalg.norm(a)
+    norm_b = np.linalg.norm(b)
+    
     value = norm_a**2 / (np.sqrt(norm_a**2 - norm_a**2 * norm_b**2 + a_dot_b**2) - a_dot_b)
     return value
 
-def test_statistic(X, Y, groups, weights):
+def test_statistic(X, Y, groups, weights, sigma=1):
     """
-    The function computes the relevant quantities needed compute our $p$-values.
+    The function computes the relevant quantities needed 
+    to compute our $p$-values.
 
     Parameters
     ----------
@@ -175,6 +272,9 @@ def test_statistic(X, Y, groups, weights):
     rank : float
         Rank of $X_{g_{\max}}$ -- should round to an integer.
 
+    pvalue : float
+        P-value
+
     >>> np.random.seed(1)
     >>> X, Y, G, W = simulate_random(100, 6, 4)
     >>> test_statistic(X,Y,G,W)
@@ -183,20 +283,42 @@ def test_statistic(X, Y, groups, weights):
 
     """
     grad = np.dot(X.T, Y) 
-    imax = np.argmax([np.linalg.norm(grad[group]) / weight for group, weight in zip(groups, weights)])
-    gmax = groups[imax]
+    G = np.zeros(grad.shape, np.int)
+    W = {}
+    for i, g in enumerate(groups):
+        G[g] = i
+        W[i] = weights[i]
+    dual = rr.group_lasso_dual(G, weights=W, lagrange=1)
+
+    terms = dual.terms(grad)
+    imax = np.argmax(terms)
+    gmax = G == imax
+
     X_gmax = X[:,gmax]
     P_gmax = np.dot(X_gmax, np.linalg.pinv(X_gmax))
-    weight_gmax = weights[imax]
-    M_u_gmax = L2 = max([maximum_pinned(X[:,group], weight, X_gmax, weight_gmax, P_gmax, Y) for group, weight in zip(groups, weights) if group != gmax])
-    u_gmax = grad[gmax].copy()
+
+    V = [maximum_pinned(X[:,G == j], weight, X_gmax, 
+                        weights[imax], P_gmax, Y) 
+         for j, weight in enumerate(weights) if j != imax]
+    M_u_gmax = max(V)
+
+    u_gmax = grad[G == imax].copy()
     u_gmax /= np.linalg.norm(u_gmax)
     
-    L1 = np.dot(u_gmax, grad[gmax]) / weight_gmax
-    var_f_u_gmax = np.linalg.norm(np.dot(X_gmax, u_gmax))**2 # / (weight_gmax**2)
+    L1 = np.dot(u_gmax, grad[gmax]) / weights[imax]
+    print L1, np.max(terms), 'max'
+
+    var_f_u_gmax = np.linalg.norm(np.dot(X_gmax, u_gmax / weights[imax]))**2 * sigma**2
+    print L1, var_f_u_gmax, weights[imax], 'var'
     T = L1 * (L1 - M_u_gmax) / var_f_u_gmax
     rank = np.diag(P_gmax).sum()
-    return T, L1, L2, gmax, weight_gmax, rank
+
+    W = weights[imax]
+    L2 = M_u_gmax 
+    S = np.sqrt(var_f_u_gmax)
+    print L1/S, L2/S, chi.cdf(L1/S, rank), chi.cdf(L2/S, rank)
+    pvalue = (1 - chi.cdf(L1 / S, rank)) / (1 - chi.cdf(L2 / S, rank))
+    return T, L1, M_u_gmax, gmax, W, rank, var_f_u_gmax, pvalue
 
 def simulate_random(n, g, k, orthonormal=True, beta=None, max_size=None):
     """
@@ -359,9 +481,7 @@ def test_main():
     lagrange_lasso = 0.995 * dual_penalty.seminorm(np.dot(X_lasso.T,Y_lasso), lagrange=1.)
     print lagrange_lasso, 0.995 * np.fabs(np.dot(X_lasso.T, Y_lasso)).max(), 'huh'
 
-
     soln_lasso, resid_lasso = solve_glasso(X_lasso, Y_lasso, np.arange(p), lagrange_lasso, tol=1.e-10)
-
 
     L, Mplus, Mminus, alpha, tv, var = glasso_knot(X_lasso, resid_lasso, soln_lasso, lagrange_lasso)
     print Mplus, Mminus

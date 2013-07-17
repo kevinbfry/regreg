@@ -1,6 +1,6 @@
-import regreg.api as rr
 import numpy as np
 
+import regreg.api as rr
 from regreg.knots import (find_alpha, 
                           linear_fractional_nesta, 
                           linear_fractional_tfocs,
@@ -103,7 +103,11 @@ def signed_basis_vector(j, sign, p):
     v[j] = sign
     return v
 
-def lasso_knot(X, R, soln, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*50 + [1.e-8]*200, tol=1.e-7, method='admm'):
+def lasso_knot(X, R, soln, 
+               epsilon=([1.e-2] + [1.e-4]*3 + [1.e-5]*3 + 
+                        [1.e-6]*50 + [1.e-8]*200), tol=1.e-7, 
+               method='admm',
+               min_iters=10):
     """
     Find an approximate LASSO knot
     """
@@ -148,20 +152,21 @@ def lasso_knot(X, R, soln, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*50 
                                                     tol=tol,
                                                     epsilon=epsilon,
                                                     initial_primal=initial_primal,
-                                                    min_iters=10)
+                                                    min_iters=min_iters)
     elif method == 'tfocs':
         Mplus, next_soln = linear_fractional_tfocs(-(U-alpha*L), 
                                                     alpha, 
                                                     epigraph, 
                                                     tol=tol,
                                                     epsilon=epsilon,
-                                                    min_iters=10)
+                                                    min_iters=min_iters)
     elif method == 'admm':
         Mplus, next_soln = linear_fractional_admm(-(U-alpha*L), 
                                                    alpha, 
                                                    epigraph, 
                                                    tol=tol,
-                                                   min_iters=10)
+                                                   rho=np.sqrt(p),
+                                                   min_iters=min_iters)
     else:
         raise ValueError('method must be one of ["nesta", "tfocs", "admm"]')
 
@@ -174,7 +179,7 @@ def lasso_knot(X, R, soln, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*50 
                                                  sign=-1,
                                                  epsilon=epsilon,
                                                  initial_primal=initial_primal,
-                                                 min_iters=10)
+                                                 min_iters=min_iters)
         elif method == 'tfocs':
             Mminus, _ = linear_fractional_tfocs(-(U-alpha*L), 
                                                  alpha, 
@@ -183,7 +188,7 @@ def lasso_knot(X, R, soln, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*50 
                                                  sign=-1,
                                                  epsilon=epsilon,
                                                  initial_primal=initial_primal,
-                                                 min_iters=10)
+                                                 min_iters=min_iters)
             
         elif method == 'admm':
             Mminus, _ = linear_fractional_admm(-(U-alpha*L), 
@@ -191,7 +196,8 @@ def lasso_knot(X, R, soln, epsilon=[1.e-2] + [1.e-4]*3 + [1.e-5]*3 + [1.e-6]*50 
                                                 epigraph, 
                                                 tol=tol,
                                                 sign=-1,
-                                                min_iters=10)
+                                                rho=np.sqrt(p),
+                                                min_iters=min_iters)
         else:
             raise ValueError('method must be one of ["nesta", "tfocs", "admm"]')
     else:

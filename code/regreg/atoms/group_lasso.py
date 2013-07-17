@@ -46,6 +46,7 @@ class group_lasso(seminorm):
                  initial=None):
 
         self.groups = np.asarray(groups).copy()
+
         shape = self.groups.shape
         seminorm.__init__(self, shape, offset=offset,
                           quadratic=quadratic,
@@ -56,10 +57,10 @@ class group_lasso(seminorm):
         self.weights = copy(weights)
         self._group_array = np.zeros(shape, np.int)
 
-        sg = sorted(np.unique(self.groups))
-        self._weight_array = np.ones(len(sg))
+        self.group_labels = sorted(np.unique(self.groups))
+        self._weight_array = np.ones(len(self.group_labels))
         
-        for i, g in enumerate(sg):
+        for i, g in enumerate(self.group_labels):
             group = self.groups == g
             self._group_array[group] = i
             self._weight_array[i] = self.weights.get(g, np.sqrt(group.sum()))

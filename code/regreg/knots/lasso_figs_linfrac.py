@@ -17,7 +17,7 @@ def simulate_null(X):
     # solution
 
     loss = rr.squared_error(X, Z)
-    penalty = rr.l1norm(X.shape[1], lagrange=0.995*L)
+    penalty = rr.l1norm(X.shape[1], lagrange=L)
     problem = rr.simple_problem(loss, penalty)
     soln = problem.solve()
 
@@ -34,6 +34,7 @@ def fig(X, fname, nsim=10000):
     P = []
     for _ in range(nsim):
         P.append(simulate_null(X))
+        print np.mean(P), np.std(P)
     IP.magic('load_ext rmagic')
     IP.magic('R -i P')
     IP.run_cell_magic(u'R', u'', '''
