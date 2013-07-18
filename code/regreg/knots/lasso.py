@@ -4,7 +4,8 @@ import regreg.api as rr
 from regreg.knots import (find_alpha, 
                           linear_fractional_nesta, 
                           linear_fractional_tfocs,
-                          linear_fractional_admm)
+                          linear_fractional_admm,
+                          chi_pvalue)
 
 def lasso_knot_covstat(X, R, soln, tol=1.e-6):
     """
@@ -296,3 +297,17 @@ def test_main():
 
 if __name__ == '__main__':
     test_main()
+
+def pvalue(L, Mplus, Mminus, sd, method='cdf', nsim=1000):
+    return chi_pvalue(L, Mplus, Mminus, sd, 1, method=method, nsim=nsim)
+
+def first_test(X, Y, nsim=50000,
+               method='cdf',
+               sigma=1):
+    soln = np.zeros(X.shape[1])
+    (L, Mplus, Mminus, _, _, 
+     var, _, _, _) = lasso_knot(X, Y, 
+                                soln,
+                                method='explicit')
+    sd = np.sqrt(var) * sigma
+    return pvalue(L, Mplus, Mminus, sd, method=method, nsim=nsim)

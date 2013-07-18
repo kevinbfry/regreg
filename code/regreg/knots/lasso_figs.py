@@ -10,21 +10,7 @@ def simulate_null(X):
     n, p = X.shape
 
     Z = np.random.standard_normal(n) * sigma
-    G = np.dot(X.T, Z)
-    L = np.fabs(G).max()
-
-    # find something proportional to first nontrivial
-    # solution
-
-    soln = np.zeros(X.shape[1])
-
-    L, Mplus, Mminus, _, _, var, _, _, _ = K.lasso_knot(X, Z, soln, tol=1.e-10,
- method='explicit')
-    k = 1
-    sd = np.sqrt(var) * sigma
-    pval = (chi.cdf(Mminus / sd, k) - chi.cdf(L / sd, k)) / (chi.cdf(Mminus / sd, k) - chi.cdf(Mplus / sd, k))
-
-    return pval
+    return K.first_test(X, Z, sigma=sigma)
 
 def fig(X, fname, nsim=10000):
     IP = get_ipython()

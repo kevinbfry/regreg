@@ -4,7 +4,8 @@ from scipy.stats import chi
 import regreg.api as rr
 from regreg.knots import (find_alpha, linear_fractional_admm,
                           linear_fractional_tfocs,
-                          linear_fractional_admm)
+                          linear_fractional_admm,
+                          chi_pvalue)
 from lasso import signed_basis_vector
 
 def solve_glasso(X, Y, groups, L, tol=1.e-5):
@@ -454,6 +455,7 @@ def simulate_fixed(n, g, k, orthonormal=True, beta=None, max_size=None, useA=Tru
 def test_main():
 
     import rpy2.robjects as rpy
+    from scipy.stats import chi
 
     try:
         from rpy2.robjects import pandas2ri
@@ -494,10 +496,13 @@ def test_main():
 
     print L[:2]
 
-def trignometric_form(num, den, weight):
+def trignometric_form(num, den, weight, tol=1.e-6):
     a, b, w = num, den, weight # shorthand
 
-    Ctheta = (a*b).sum() / np.sqrt((a**2).sum() * (b**2).sum())
+    if np.linalg.norm(a) / np.linalg.norm(b) < tol:
+        return 0, np.inf
+
+    Ctheta = np.clip((a*b).sum() / np.sqrt((a**2).sum() * (b**2).sum()), -1, 1)
     Stheta = np.sqrt(1-Ctheta**2)
     theta = np.arccos(Ctheta)
 
@@ -508,72 +513,24 @@ def trignometric_form(num, den, weight):
     V1 = np.linalg.norm(a) * np.cos(phi1) / (w - np.linalg.norm(b) * np.cos(theta-phi1))
     V2 = np.linalg.norm(a) * np.cos(phi2) / (w - np.linalg.norm(b) * np.cos(theta-phi2))
 
+    if np.isnan(V1) or np.isnan(V2):
+        stop
     if np.linalg.norm(b) < w:
         return max([V1,V2]), np.inf
     else:
         return min([V1,V2]), max([V1,V2])
 
+def first_test(X, Y, groups, weights={}, nsim=50000,
+               method='MC',
+               sigma=1):
+    soln = np.zeros(X.shape[1])
+    (L, Mplus, Mminus, _, _, 
+     var, _, _, _, k, w) = glasso_knot(X, Y, groups, 
+                                       soln,
+                                       method='explicit',
+                                       weights=weights)
+    sd = np.sqrt(var) * sigma
+    return pvalue(L, Mplus, Mminus, sd, k, method=method, nsim=nsim)
 
-def M(H, Vplus, Vminus, mu, sigma, M, nsim=100):
-    '''
-    Assumes H are eigenvalues of a symmetric matrix. Computes 
-    an approximation of 
-
-    .. math::
-
-        \int_{V^+}^{V^-} h(z) \det(-\Lambda + z \cdot I) \frac{e^{-(z-\mu)^2/2\sigma^2} \; dz
-
-    where $h=1_{[M,\infty)}$ for some $V^+ < M < V^-$
-
-    '''
-    
-    Z = np.fabs(np.random.standard_normal(nsim)) * sigma 
-    M = M - mu
-    proportion = (Z < Vminus - u).sum() * 1. / nsim
-    Z = Z[Z < Vminus - u]
-    exponent = np.log(np.add.outer(Z,H) + u).sum(1) - (M*Z - M**2/2.) / sigma**2
-    C = exponent.max()
-    return np.exp(exponent - C).mean() * proportion, C
-
-def Q(H, Vplus, Vminus, mu, sigma, M, nsim=100):
-    """
-    Assumes H are eigenvalues of a symmetric matrix. Computes 
-    an approximation of 
-    
-    .. math::
-    
-        \frac{q_0(L,Mminus,H)}{q_0(Mplus,Mminus,H)}
-
-    where
-
-    .. math::
-
-        q_0(M,V,H) = e^{-M^2/2}\int_0^{V-M} \exp \left(\sum_{i=1}^m \log(z+M+\lambda_i(H)) - M z \right)  \frac{e^{-z^2/2}}{\sqrt{2\pi}} \; dz
-
-    
-    """
-    
-    exponent_1, C1 = M(H, Vplus, Vminus, mu, sigma, M, nsim=nsim)
-    exponent_2, C2 = M(H, Vplus, Vminus, mu, sigma, Vminus, nsim=nsim)
-    
-    return np.exp(C1-C2) * exponent_1 / exponent_2
-
-def q_0(M, Mminus, H, nsim=100):
-    Z = np.fabs(np.random.standard_normal(nsim))
-    keep = Z < Mminus - M
-    proportion = keep.sum() * 1. / nsim
-    Z = Z[keep]
-    if H != []:
-        exponent = np.log(np.add.outer(Z, H) + M).sum(1) - M*Z - M**2/2.
-    else:
-        exponent = - M*Z - M**2/2.
-    C = exponent.max()
-    return np.exp(exponent - C).mean() * proportion, C
-
-def Q_0(L, Mplus, Mminus, H, nsim=100):
-
-    exponent_1, C1 = q_0(L, Mminus, H, nsim=nsim)
-    exponent_2, C2 = q_0(Mplus, Mminus, H, nsim=nsim)
-
-    return np.exp(C1-C2) * exponent_1 / exponent_2
-
+def pvalue(L, Mplus, Mminus, sd, k, method='MC', nsim=1000):
+    return chi_pvalue(L, Mplus, Mminus, sd, k, method=method, nsim=nsim)

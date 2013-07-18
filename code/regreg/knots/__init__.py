@@ -19,6 +19,8 @@ This module contains functions to solve two problems:
 
 import warnings
 import numpy as np
+from scipy.stats import chi
+
 import regreg.api as rr, regreg.affine as ra
 from .admm import admm
 
@@ -298,3 +300,85 @@ def solve_dual_block(b, a, w_0, mu, epigraph, sign=1, tol=1.e-6, max_iters=1000)
 def update_w_0(w_star, w_star_last, j):
     return w_star + j / (j+3.) * (w_star - w_star_last)
 
+def chi_pvalue(L, Mplus, Mminus, sd, k, method='MC', nsim=1000):
+    if k == 1:
+        H = []
+    else:
+        H = [0]*(k-1)
+    if method == 'cdf':
+        pval = (chi.cdf(Mminus / sd, k) - chi.cdf(L / sd, k)) / (chi.cdf(Mminus / sd, k) - chi.cdf(Mplus / sd, k))
+    elif method == 'sf':
+        pval = (chi.sf(Mminus / sd, k) - chi.sf(L / sd, k)) / (chi.sf(Mminus / sd, k) - chi.sf(Mplus / sd, k))
+    elif method == 'MC':
+        pval = Q_0(L / sd, Mplus / sd, Mminus / sd, H, nsim=nsim)
+    else:
+        raise ValueError('method should be one of ["cdf", "sf", "MC"]')
+    if pval == 1:
+        pval = Q_0(L / sd, Mplus / sd, Mminus / sd, H, nsim=50000)
+    if pval > 1:
+        pval = 1
+    return pval
+
+
+def M(H, Vplus, Vminus, mu, sigma, M, nsim=100):
+    '''
+    Assumes H are eigenvalues of a symmetric matrix. Computes 
+    an approximation of 
+
+    .. math::
+
+        \int_{V^+}^{V^-} h(z) \det(-\Lambda + z \cdot I) \frac{e^{-(z-\mu)^2/2\sigma^2} \; dz
+
+    where $h=1_{[M,\infty)}$ for some $V^+ < M < V^-$
+
+    '''
+    
+    Z = np.fabs(np.random.standard_normal(nsim)) * sigma 
+    M = M - mu
+    proportion = (Z < Vminus - u).sum() * 1. / nsim
+    Z = Z[Z < Vminus - u]
+    exponent = np.log(np.add.outer(Z,H) + u).sum(1) - (M*Z - M**2/2.) / sigma**2
+    C = exponent.max()
+    return np.exp(exponent - C).mean() * proportion, C
+
+def Q(H, Vplus, Vminus, mu, sigma, M, nsim=100):
+    """
+    Assumes H are eigenvalues of a symmetric matrix. Computes 
+    an approximation of 
+    
+    .. math::
+    
+        \frac{q_0(L,Mminus,H)}{q_0(Mplus,Mminus,H)}
+
+    where
+
+    .. math::
+
+        q_0(M,V,H) = e^{-M^2/2}\int_0^{V-M} \exp \left(\sum_{i=1}^m \log(z+M+\lambda_i(H)) - M z \right)  \frac{e^{-z^2/2}}{\sqrt{2\pi}} \; dz
+
+    
+    """
+    
+    exponent_1, C1 = M(H, Vplus, Vminus, mu, sigma, M, nsim=nsim)
+    exponent_2, C2 = M(H, Vplus, Vminus, mu, sigma, Vminus, nsim=nsim)
+    
+    return np.exp(C1-C2) * exponent_1 / exponent_2
+
+def q_0(M, Mminus, H, nsim=100):
+    Z = np.fabs(np.random.standard_normal(nsim))
+    keep = Z < Mminus - M
+    proportion = keep.sum() * 1. / nsim
+    Z = Z[keep]
+    if H != []:
+        exponent = np.log(np.add.outer(Z, H) + M).sum(1) - M*Z - M**2/2.
+    else:
+        exponent = - M*Z - M**2/2.
+    C = exponent.max()
+    return np.exp(exponent - C).mean() * proportion, C
+
+def Q_0(L, Mplus, Mminus, H, nsim=100):
+
+    exponent_1, C1 = q_0(L, Mminus, H, nsim=nsim)
+    exponent_2, C2 = q_0(Mplus, Mminus, H, nsim=nsim)
+
+    return np.exp(C1-C2) * exponent_1 / exponent_2

@@ -5,7 +5,6 @@ import regreg.knots.group_lasso as GL
 import regreg.api as rr
 from regreg.affine import fused_lasso 
 import regreg.affine as ra
-from scipy.stats import chi
 import numpy as np, random
 
 import mpmath
@@ -21,41 +20,15 @@ def simulate_null(X, groups, weights={}, orthonormal=False):
     n, p = X.shape
 
     Z = np.random.standard_normal(n) * sigma
-    G = np.dot(X.T, Z)
-    dual = rr.group_lasso_dual(groups, weights=weights, lagrange=1)
-    L = dual.seminorm(G)
 
-    # find something proportional to first nontrivial
-    # solution
-
-    soln = np.zeros(X.shape[1])
-
-    (L1, Mplus, Mminus, _, _, 
-     var, U, alpha, _, kmax, wmax) = GL.glasso_knot(X, Z, groups, 
-                                                    soln,
-                                                    method='explicit',
-                                                    weights=weights)
-
-    Mminus = max(Mminus, L)
-    if Mplus >= L or Mminus <= L or Mplus >= Mminus:
-        stop
-    k = kmax
-    sd = np.sqrt(var) * sigma
-    pval = (chi.sf(L / sd, k) - chi.sf(Mminus / sd, k)) / (chi.sf(Mplus / sd, k) - chi.cdf(Mminus / sd, k))
-    if pval == 0: # chi.cdf(L / sd, k)== 1
-        # use densities 
-        pval = GL.Q_0(L / sd, Mplus / sd, Mminus / sd, [0]*(k-1), nsim=50000)
-    else:
-        pval = GL.Q_0(L / sd, Mplus / sd, Mminus / sd, [0]*(k-1), nsim=10000)
-    if pval > 1:
-        pval = 1
-    return pval
+    return GL.first_test(X, Z, groups, weights=weights, sigma=sigma)
 
 def fig(X, fname, groups, nsim=10000, weights={}):
     P = []
     for _ in range(nsim):
         pval = simulate_null(X, groups, weights=weights)
-        P.append(pval)
+        if pval is not None:
+            P.append(pval)
     P = np.array(P)
     make_fig(fname, P)
 
@@ -123,8 +96,25 @@ X = diabetes$x
 ''')
     X = IP.user_ns['X']
     groups = range(X.shape[1])
-    fig(X, 'lars_diabetes_lasso_as_group.pdf', groups, nsim=nsim, weights={2:1,3:2,0:4})
+    fig(X, 'lars_diabetes_lasso_as_group.pdf', groups, nsim=nsim, weights={}) # {2:1,3:2,0:4})
 
+def fig7(nsim=10000):
+    n, p = 100, 10
+    X = np.random.standard_normal((n,p)) + np.random.standard_normal(n)[:,np.newaxis]
+    X -= X.mean(0)
+    X /= X.std(0)
+    X[:,8:] = X[:,:2]
+    groups = np.array([0]*8+[1]*2)
+    fig(X, 'nested_groups_big_first.pdf', groups, nsim=nsim, weights={0:0.1,1:3})
+
+def fig8(nsim=10000):
+    n, p = 100, 10
+    X = np.random.standard_normal((n,p)) + np.random.standard_normal(n)[:,np.newaxis]
+    X -= X.mean(0)
+    X /= X.std(0)
+    X[:,8:] = X[:,:2]
+    groups = np.array([0]*8+[1]*2)
+    fig(X, 'nested_groups_smaller_first.pdf', groups, nsim=nsim, weights={1:0.1,0:3})
 
 def produce_figs(seed=0):
     np.random.seed(seed)
@@ -132,4 +122,4 @@ def produce_figs(seed=0):
     IP = get_ipython()
     IP.magic('R set.seed(%d)' % seed)
 
-    [f() for f in [fig1, fig2, fig3, fig4, fig5, fig6]]
+    [f() for f in [fig1, fig2, fig3, fig4, fig5, fig6, fig7, fig8]]
