@@ -96,7 +96,8 @@ X = diabetes$x
 ''')
     X = IP.user_ns['X']
     groups = range(X.shape[1])
-    fig(X, 'lars_diabetes_lasso_as_group.pdf', groups, nsim=nsim, weights={}) # {2:1,3:2,0:4})
+    fig(X, 'lars_diabetes_lasso_as_group.pdf', groups, nsim=nsim, 
+        weights=dict([(i, s) for i, s in enumerate(0.2 * np.random.sample(X.shape[1])+1)]))
 
 def fig7(nsim=10000):
     n, p = 100, 10
@@ -115,6 +116,30 @@ def fig8(nsim=10000):
     X[:,8:] = X[:,:2]
     groups = np.array([0]*8+[1]*2)
     fig(X, 'nested_groups_smaller_first.pdf', groups, nsim=nsim, weights={1:0.1,0:3})
+
+def fig9(nsim=10000):
+    n = 100
+    Z = [np.random.standard_normal((n,4)) for _ in range(2)]
+    X = np.hstack([Z[0], Z[0][:,:2], Z[1], Z[1][:,:2]])
+    X -= X.mean(0)
+    X /= X.std(0)
+    groups = np.array([0]*4+[1]*2+[2]*4+[3]*2)
+    fig(X, 'two_nested_groups.pdf', groups, nsim=nsim)
+
+def fig10(nsim=10000):
+    n = 100
+    Z = [np.random.standard_normal((n,4)) for _ in range(20)]
+    W = []
+    groups = []
+    for i in range(20):
+        W.extend([Z[i], Z[i][:,:2]])
+        groups.extend([2*i]*4+[2*i+1]*2)
+    print groups
+    X = np.hstack(W)
+    X -= X.mean(0)
+    X /= X.std(0)
+    fig(X, 'several_nested_groups.pdf', groups, nsim=nsim, weights=
+        {0:1.9,2:1.9,5:1.3})
 
 def produce_figs(seed=0):
     np.random.seed(seed)
