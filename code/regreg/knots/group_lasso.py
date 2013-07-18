@@ -563,7 +563,10 @@ def q_0(M, Mminus, H, nsim=100):
     keep = Z < Mminus - M
     proportion = keep.sum() * 1. / nsim
     Z = Z[keep]
-    exponent = np.log(np.add.outer(Z, H) + M).sum(1) - M*Z - M**2/2.
+    if H != []:
+        exponent = np.log(np.add.outer(Z, H) + M).sum(1) - M*Z - M**2/2.
+    else:
+        exponent = - M*Z - M**2/2.
     C = exponent.max()
     return np.exp(exponent - C).mean() * proportion, C
 
