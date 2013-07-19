@@ -121,6 +121,7 @@ def fig9(nsim=10000):
     n = 100
     Z = [np.random.standard_normal((n,4)) for _ in range(2)]
     X = np.hstack([Z[0], Z[0][:,:2], Z[1], Z[1][:,:2]])
+    X += np.random.standard_normal(n)[:,np.newaxis]
     X -= X.mean(0)
     X /= X.std(0)
     groups = np.array([0]*4+[1]*2+[2]*4+[3]*2)
@@ -134,8 +135,8 @@ def fig10(nsim=10000):
     for i in range(20):
         W.extend([Z[i], Z[i][:,:2]])
         groups.extend([2*i]*4+[2*i+1]*2)
-    print groups
     X = np.hstack(W)
+    X += np.random.standard_normal(n)[:,np.newaxis]
     X -= X.mean(0)
     X /= X.std(0)
     fig(X, 'several_nested_groups.pdf', groups, nsim=nsim, weights=
@@ -147,4 +148,5 @@ def produce_figs(seed=0):
     IP = get_ipython()
     IP.magic('R set.seed(%d)' % seed)
 
-    [f() for f in [fig1, fig2, fig3, fig4, fig5, fig6, fig7, fig8]]
+    [f() for f in [fig1, fig2, fig3, fig4, fig5, 
+                   fig6, fig7, fig8, fig9, fig10]]

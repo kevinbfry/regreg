@@ -236,6 +236,9 @@ def linear_fractional_admm(a, b, epigraph, sign=1., tol=1.e-5, rho=1,
 def find_alpha(soln, X, tangent_vectors=None):
     """
     Return $P_X(\eta), \alpha_{\eta}$
+
+    TODO: this should take an argument $\Sigma$ for the 
+    noise covariance.
     """
     X = rr.astransform(X)
     
@@ -248,8 +251,8 @@ def find_alpha(soln, X, tangent_vectors=None):
     else:
         P = 0
     
-    alpha = X.linear_map(soln).copy()
-    alpha = alpha - np.dot(P, alpha)
+    eta = X.linear_map(soln).copy()
+    alpha = eta - np.dot(P, eta)
     conditional_variance = (alpha**2).sum() 
 
     alpha /= (alpha**2).sum()

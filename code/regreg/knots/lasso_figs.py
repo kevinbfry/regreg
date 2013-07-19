@@ -1,8 +1,6 @@
 import regreg.knots.lasso as K
-import regreg.api as rr
 from regreg.affine import fused_lasso 
 import regreg.affine as ra
-from scipy.stats import chi
 import numpy as np, random
 
 def simulate_null(X):
