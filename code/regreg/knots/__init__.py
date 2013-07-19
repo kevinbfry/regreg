@@ -136,10 +136,10 @@ def linear_fractional_nesta(a, b, epigraph, sign=1., tol=1.e-5,
     a, b = np.asarray(a), np.asarray(b)
     p = a.shape[0]
     a_full = np.zeros(p+1)
-    a_full[:-1] = a
+    a_full[:-1] = a.reshape(-1)
     
     b_full = np.zeros(p+1)
-    b_full[:-1] = -b
+    b_full[:-1] = -b.reshape(-1)
     b_full[-1] = 1.
 
     linear_constraint = rr.zero_constraint.affine(b_full.reshape((1,-1)), -sign)
@@ -205,12 +205,12 @@ def linear_fractional_admm(a, b, epigraph, sign=1., tol=1.e-5, rho=1,
     """
 
     a, b = np.asarray(a), np.asarray(b)
-    p = a.shape[0]
+    p = np.product(a.shape)
     a_full = np.zeros(p+1)
-    a_full[:-1] = a
+    a_full[:-1] = a.reshape(-1)
     
     b_full = np.zeros(p+1)
-    b_full[:-1] = -b
+    b_full[:-1] = -b.reshape(-1)
     b_full[-1] = 1.
 
     n_full = b_full / np.linalg.norm(b_full)
@@ -245,20 +245,20 @@ def find_C_X(soln, X, tangent_vectors=None):
     
     if tangent_vectors is not None:
         tangent_vectors = np.asarray(tangent_vectors)
-        tangent_vectors = np.array([X.linear_map(tv).copy() for tv in tangent_vectors])
+        tangent_vectors = np.array([X.linear_map(tv.reshape(X.input_shape)).copy() for tv in tangent_vectors])
         W = np.array(tangent_vectors)
+        W = W.reshape((W.shape[0],-1))
         Winv = np.linalg.pinv(W)
         P = np.dot(W.T, Winv.T)
     else:
         P = 0
     
-    eta = X.linear_map(soln).copy()
+    eta = X.linear_map(soln).copy().reshape(-1)
     C_X = eta - np.dot(P, eta)
     conditional_variance = (C_X**2).sum() 
 
     C_X /= (C_X**2).sum()
-    C_X = X.adjoint_map(C_X).copy()
-
+    C_X = X.adjoint_map(C_X.reshape(X.output_shape)).copy()
     return C_X, conditional_variance
 
 def eta_step(gh, b, a, w_0, mu, sign=1):
@@ -373,8 +373,10 @@ def q_0(M, Mminus, H, nsim=100):
     keep = Z < Mminus - M
     proportion = keep.sum() * 1. / nsim
     Z = Z[keep]
+    M = max(max(-H), M)
     if H != []:
-        exponent = np.log(np.add.outer(Z, H) + M).sum(1) - M*Z - M**2/2.
+        HM = np.clip(H + M, 0, np.inf)
+        exponent = np.log(np.add.outer(Z, HM)).sum(1) - M*Z - M**2/2.
     else:
         exponent = - M*Z - M**2/2.
     C = exponent.max()
