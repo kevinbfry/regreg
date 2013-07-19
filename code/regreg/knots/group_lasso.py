@@ -2,7 +2,7 @@ import numpy as np
 from scipy.stats import chi
 
 import regreg.api as rr
-from regreg.knots import (find_alpha, linear_fractional_admm,
+from regreg.knots import (find_C_X, linear_fractional_admm,
                           linear_fractional_tfocs,
                           linear_fractional_admm,
                           chi_pvalue)
@@ -56,7 +56,7 @@ def glasso_knot(X, R, groups, soln,
             tv[:] = tv - np.dot(tv, soln) * soln / np.linalg.norm(soln)**2
     else:
         tangent_vectors = None
-    alpha, var = find_alpha(soln, X, tangent_vectors)
+    C_X, var = find_C_X(soln, X, tangent_vectors)
     
     # in actually finding M^+ we don't have to subtract the conditional 
     # expectation of the tangent part, as it will be zero at eta that
@@ -66,30 +66,30 @@ def glasso_knot(X, R, groups, soln,
     epigraph = rr.group_lasso_epigraph(groups, weights=weights)
 
     if method == 'nesta':
-        Mplus, next_soln = linear_fractional_nesta(-(U-alpha*L), 
-                                                    alpha, 
+        Mplus, next_soln = linear_fractional_nesta(-(U-C_X*L), 
+                                                    C_X, 
                                                     epigraph, 
                                                     tol=tol,
                                                     epsilon=epsilon,
                                                     initial_primal=initial_primal,
                                                     min_iters=min_iters)
     elif method == 'tfocs':
-        Mplus, next_soln = linear_fractional_tfocs(-(U-alpha*L), 
-                                                    alpha, 
+        Mplus, next_soln = linear_fractional_tfocs(-(U-C_X*L), 
+                                                    C_X, 
                                                     epigraph, 
                                                     tol=tol,
                                                     epsilon=epsilon,
                                                     min_iters=min_iters)
     elif method == 'admm':
-        Mplus, next_soln = linear_fractional_admm(-(U-alpha*L), 
-                                                   alpha, 
+        Mplus, next_soln = linear_fractional_admm(-(U-C_X*L), 
+                                                   C_X, 
                                                    epigraph, 
                                                    tol=tol,
                                                    rho=np.sqrt(p),
                                                    min_iters=min_iters)
     elif method == 'explicit':
-        a = U - alpha * L
-        b = alpha
+        a = U - C_X * L
+        b = C_X
 
         Vplus = []
         Vminus = []
@@ -105,10 +105,10 @@ def glasso_knot(X, R, groups, soln,
     else:
         raise ValueError('method must be one of ["nesta", "tfocs", "admm", "explicit"]')
 
-    if dual.seminorm(alpha) > 1.001:
+    if dual.seminorm(C_X) > 1.001:
         if method == 'nesta':
-            Mminus, _ = linear_fractional_nesta(-(U-alpha*L), 
-                                                 alpha, 
+            Mminus, _ = linear_fractional_nesta(-(U-C_X*L), 
+                                                 C_X, 
                                                  epigraph, 
                                                  tol=tol,
                                                  sign=-1,
@@ -116,8 +116,8 @@ def glasso_knot(X, R, groups, soln,
                                                  initial_primal=initial_primal,
                                                  min_iters=min_iters)
         elif method == 'tfocs':
-            Mminus, _ = linear_fractional_tfocs(-(U-alpha*L), 
-                                                 alpha, 
+            Mminus, _ = linear_fractional_tfocs(-(U-C_X*L), 
+                                                 C_X, 
                                                  epigraph, 
                                                  tol=tol,
                                                  sign=-1,
@@ -126,8 +126,8 @@ def glasso_knot(X, R, groups, soln,
                                                  min_iters=min_iters)
             
         elif method == 'admm':
-            Mminus, _ = linear_fractional_admm(-(U-alpha*L), 
-                                                alpha, 
+            Mminus, _ = linear_fractional_admm(-(U-C_X*L), 
+                                                C_X, 
                                                 epigraph, 
                                                 tol=tol,
                                                 sign=-1,
@@ -140,7 +140,7 @@ def glasso_knot(X, R, groups, soln,
     else:
         Mminus = np.inf
 
-    return (L, -Mplus, Mminus, alpha, tangent_vectors, var, U, alpha, next_soln, kmax, wmax)
+    return (L, -Mplus, Mminus, C_X, tangent_vectors, var, U, C_X, next_soln, kmax, wmax)
 
 def maximum_pinned(X_h, w_h, X_g, w_g, P_g, y):
     """
@@ -480,7 +480,7 @@ def test_main():
 
     soln_lasso, resid_lasso = solve_glasso(X_lasso, Y_lasso, np.arange(p), lagrange_lasso, tol=1.e-10)
 
-    L, Mplus, Mminus, alpha, tv, var = glasso_knot(X_lasso, resid_lasso, soln_lasso, lagrange_lasso)
+    L, Mplus, Mminus, C_X, tv, var = glasso_knot(X_lasso, resid_lasso, soln_lasso, lagrange_lasso)
     print Mplus, Mminus
     print ((L, Mplus), find_next_knot_lasso(X_lasso, resid_lasso, soln_lasso, lagrange_lasso))
     print lasso_knot_covstat(X_lasso, resid_lasso, soln_lasso, lagrange_lasso)[:3]

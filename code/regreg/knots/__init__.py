@@ -233,9 +233,10 @@ def linear_fractional_admm(a, b, epigraph, sign=1., tol=1.e-5, rho=1,
 
     return value, soln[:-1] / soln[-1]
 
-def find_alpha(soln, X, tangent_vectors=None):
+def find_C_X(soln, X, tangent_vectors=None):
     """
-    Return $P_X(\eta), \alpha_{\eta}$
+    Return $C_X(\eta, \cdot)$ and the variance of
+    $\tilde{f}^{\eta}_{\eta}$.
 
     TODO: this should take an argument $\Sigma$ for the 
     noise covariance.
@@ -252,13 +253,13 @@ def find_alpha(soln, X, tangent_vectors=None):
         P = 0
     
     eta = X.linear_map(soln).copy()
-    alpha = eta - np.dot(P, eta)
-    conditional_variance = (alpha**2).sum() 
+    C_X = eta - np.dot(P, eta)
+    conditional_variance = (C_X**2).sum() 
 
-    alpha /= (alpha**2).sum()
-    alpha = X.adjoint_map(alpha).copy()
+    C_X /= (C_X**2).sum()
+    C_X = X.adjoint_map(C_X).copy()
 
-    return alpha, conditional_variance
+    return C_X, conditional_variance
 
 def eta_step(gh, b, a, w_0, mu, sign=1):
     y_0, z_0 = w_0[:-1], w_0[-1]

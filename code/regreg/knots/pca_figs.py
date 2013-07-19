@@ -34,18 +34,23 @@ def fig3(nsim=10000):
     fig((30,1000), 'fat_pca.pdf', nsim=nsim)
 
 def fig4(nsim=10000):
-    fig((1000,1000), 'bigsquare_pca.pdf', nsim=nsim)
+    fig((2,2), 'tiny_pca.pdf', nsim=nsim)
 
 def fig5(nsim=10000):
     fig((30,5), 'medium_pca.pdf', nsim=nsim)
 
 def fig6(nsim=10000):
-    fig((100,20), 'typical_pca.pdf', nsim=nsim)
+    fig((100,20), 'midrange_pca.pdf', nsim=nsim)
 
-def produce_figs(seed=0):
+def fig7(nsim=10000):
+    fig((1000,1000), 'bigsquare_pca.pdf', nsim=nsim)
+
+def produce_figs(seed=0, big=False):
     np.random.seed(seed)
     random.seed(seed)
     IP = get_ipython()
     IP.magic('R set.seed(%d)' % seed)
 
     [f() for f in [fig1, fig2, fig3, fig4, fig5, fig6]]
+    if big:
+        fig7()

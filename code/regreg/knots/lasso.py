@@ -1,7 +1,7 @@
 import numpy as np
 
 import regreg.api as rr
-from regreg.knots import (find_alpha, 
+from regreg.knots import (find_C_X, 
                           linear_fractional_nesta, 
                           linear_fractional_tfocs,
                           linear_fractional_admm,
@@ -29,24 +29,24 @@ def lasso_knot_covstat(X, R, soln, tol=1.e-6):
     else:
         tangent_vectors = None
 
-    alpha, var = find_alpha(soln, X, tangent_vectors)
+    C_X, var = find_C_X(soln, X, tangent_vectors)
     
     L = np.fabs(U).max()
 
-    # having found alpha, we can 
+    # having found C_X, we can 
     # solve for M+, M- explicitly (almost surely)
     Mplus = {}
     Mminus = {}
     keep = np.ones(U.shape[0], np.bool)
     keep[which] = 0
 
-    den = 1 - alpha
-    num = U - alpha * L
+    den = 1 - C_X
+    num = U - C_X * L
     Mplus[1] = (num / den * (den > 0))[keep]
     Mminus[1] = (num * keep / (den + (1 - keep)))[den < 0]
     
-    den = 1 + alpha
-    num =  -(U - alpha * L)
+    den = 1 + C_X
+    num =  -(U - C_X * L)
     Mplus[-1] = (num / den * (den > 0))[keep]
     Mminus[-1] = (num * keep / (den + (1 - keep)))[den < 0]
     
@@ -68,7 +68,7 @@ def lasso_knot_covstat(X, R, soln, tol=1.e-6):
     else:
         Mminus = np.inf
         
-    return (L, Mplus, Mminus, alpha, tangent_vectors, var, U, alpha, None)
+    return (L, Mplus, Mminus, C_X, tangent_vectors, var, U, C_X, None)
 
 def solve_lasso(X, Y, L, tol=1.e-5):
     """
@@ -131,7 +131,7 @@ def lasso_knot(X, R, soln,
     else:
         tangent_vectors = None
 
-    alpha, var = find_alpha(soln, X, tangent_vectors)
+    C_X, var = find_C_X(soln, X, tangent_vectors)
     
     # in actually finding M^+ we don't have to subtract the conditional 
     # expectation of the tangent part, as it will be zero at eta that
@@ -147,23 +147,23 @@ def lasso_knot(X, R, soln,
     U = X.adjoint_map(R).copy()
     L = np.fabs(U).max()
     if method == 'nesta':
-        Mplus, next_soln = linear_fractional_nesta(-(U-alpha*L), 
-                                                    alpha, 
+        Mplus, next_soln = linear_fractional_nesta(-(U-C_X*L), 
+                                                    C_X, 
                                                     epigraph, 
                                                     tol=tol,
                                                     epsilon=epsilon,
                                                     initial_primal=initial_primal,
                                                     min_iters=min_iters)
     elif method == 'tfocs':
-        Mplus, next_soln = linear_fractional_tfocs(-(U-alpha*L), 
-                                                    alpha, 
+        Mplus, next_soln = linear_fractional_tfocs(-(U-C_X*L), 
+                                                    C_X, 
                                                     epigraph, 
                                                     tol=tol,
                                                     epsilon=epsilon,
                                                     min_iters=min_iters)
     elif method == 'admm':
-        Mplus, next_soln = linear_fractional_admm(-(U-alpha*L), 
-                                                   alpha, 
+        Mplus, next_soln = linear_fractional_admm(-(U-C_X*L), 
+                                                   C_X, 
                                                    epigraph, 
                                                    tol=tol,
                                                    rho=np.sqrt(p),
@@ -175,10 +175,10 @@ def lasso_knot(X, R, soln,
     else:
         raise ValueError('method must be one of ["nesta", "tfocs", "admm", "explicit"]')
 
-    if np.fabs(alpha).max() > 1.001:
+    if np.fabs(C_X).max() > 1.001:
         if method == 'nesta':
-            Mminus, _ = linear_fractional_nesta(-(U-alpha*L), 
-                                                 alpha, 
+            Mminus, _ = linear_fractional_nesta(-(U-C_X*L), 
+                                                 C_X, 
                                                  epigraph, 
                                                  tol=tol,
                                                  sign=-1,
@@ -186,8 +186,8 @@ def lasso_knot(X, R, soln,
                                                  initial_primal=initial_primal,
                                                  min_iters=min_iters)
         elif method == 'tfocs':
-            Mminus, _ = linear_fractional_tfocs(-(U-alpha*L), 
-                                                 alpha, 
+            Mminus, _ = linear_fractional_tfocs(-(U-C_X*L), 
+                                                 C_X, 
                                                  epigraph, 
                                                  tol=tol,
                                                  sign=-1,
@@ -196,8 +196,8 @@ def lasso_knot(X, R, soln,
                                                  min_iters=min_iters)
             
         elif method == 'admm':
-            Mminus, _ = linear_fractional_admm(-(U-alpha*L), 
-                                                alpha, 
+            Mminus, _ = linear_fractional_admm(-(U-C_X*L), 
+                                                C_X, 
                                                 epigraph, 
                                                 tol=tol,
                                                 sign=-1,
@@ -210,7 +210,7 @@ def lasso_knot(X, R, soln,
     else:
         Mminus = np.inf
 
-    return (L, -Mplus, Mminus, alpha, tangent_vectors, var, U, alpha, next_soln)
+    return (L, -Mplus, Mminus, C_X, tangent_vectors, var, U, C_X, next_soln)
 
 def test_main():
 
@@ -237,7 +237,7 @@ def test_main():
 
     find_next_knot_lasso(X_lasso, resid_lasso, soln_lasso, lagrange_lasso)
 
-    L, Mplus, Mminus, alpha, tv, var, U, alpha, _ = lasso_knot(X_lasso, resid_lasso, soln_lasso)
+    L, Mplus, Mminus, C_X, tv, var, U, C_X, _ = lasso_knot(X_lasso, resid_lasso, soln_lasso)
     print Mplus, Mminus
     print ((L, Mplus), find_next_knot_lasso(X_lasso, resid_lasso, soln_lasso, lagrange_lasso))
     print lasso_knot_covstat(X_lasso, resid_lasso, soln_lasso)[:3]
@@ -270,7 +270,7 @@ def test_main():
 
     lagrange_lasso = 0.99 * np.fabs(np.dot(X_lasso.T, Y_lasso)).max()
     soln_lasso, resid_lasso = solve_lasso(X_lasso, Y_lasso, lagrange_lasso, tol=1.e-13)
-    L, Mplus, Mminus, alpha, tv, var = lasso_knot(X_lasso, resid_lasso, soln_lasso)
+    L, Mplus, Mminus, C_X, tv, var = lasso_knot(X_lasso, resid_lasso, soln_lasso)
     print Mplus, Mminus
     print lasso_knot_covstat(X_lasso, resid_lasso, soln_lasso)[:3]
 
