@@ -10,9 +10,9 @@ from regreg.knots import (find_C_X,
 
 def matrix_completion_knot(X, R, soln, 
                            epsilon=([1.e-2] + [1.e-4]*3 + [1.e-5]*3 + 
-                                    [1.e-6]*50 + [1.e-8]*200), tol=1.e-7, 
+                                    [1.e-6]*50 + [1.e-8]*200), tol=1.e-10, 
                            method='admm',
-                           min_iters=10):
+                           min_iters=200):
     """
     Find an approximate matrix completion knot
     """
@@ -76,7 +76,7 @@ def matrix_completion_knot(X, R, soln,
                                                    C_X, 
                                                    epigraph, 
                                                    tol=tol,
-                                                   rho=np.sqrt(p),
+                                                   rho=np.sqrt(max(n,p)),
                                                    min_iters=min_iters)
     else:
         raise ValueError('method must be one of ["nesta", "tfocs", "admm"]')
@@ -125,7 +125,7 @@ def first_test(X, Y, nsim=10000,
      var, _, _, H) = matrix_completion_knot(X, Y, 
                                             soln,
                                             method='admm',
-                                            tol=1.e-10)
+                                            tol=1.e-12)
     sd = np.sqrt(var) * sigma
     #Mplus = Mplus - min(min(Mplus+H), 0)
     #Mplus = max(-H)

@@ -1,5 +1,5 @@
 import regreg.api as rr
-import regreg.knots.matrix_completion as MC
+import regreg.knots.nuclear_norm as NN
 import numpy as np, random
 
 def simulate_null(data):
@@ -13,7 +13,7 @@ def simulate_null(data):
     Y = np.random.standard_normal(observed.sum()) * sigma
     X = rr.selector(observed, observed.shape)
     nsim = 10000
-    return MC.first_test(X, Y, sigma=sigma, nsim=nsim)
+    return NN.first_test(X, Y, sigma=sigma, nsim=nsim)
 
 def fig(data, fname, nsim=10000):
     IP = get_ipython()
@@ -30,11 +30,11 @@ abline(0,1, lwd=3, lty=2)
 dev.off()
 ''' % (fname, nsim))
 
-def fig1(nsim=3000):
+def fig1(nsim=10000):
     observed = np.ones((3,4), np.bool)
     fig(observed, 'small_matrixcomp_full.pdf', nsim=nsim)
 
-def fig2(nsim=3000):
+def fig2(nsim=10000):
     shape = (10,5)
     observed = np.random.binomial(1,0.5,shape).astype(np.bool)
     fig(observed, 'small_matrixcomp.pdf', nsim=nsim)
@@ -44,7 +44,7 @@ def fig3(nsim=3000):
     observed = np.random.binomial(1,0.2,shape).astype(np.bool)
     fig(observed, 'medium_matrixcomp.pdf', nsim=nsim)
 
-def fig4(nsim=3000):
+def fig4(nsim=10000):
     shape = (10,5)
     observed = np.ones(shape, np.bool)
     for i in range(5):
@@ -52,16 +52,16 @@ def fig4(nsim=3000):
         observed[5+i,i] = 0
     fig(observed, 'deterministic1_matrixcomp.pdf', nsim=nsim)
 
-def fig5(nsim=3000):
+def fig5(nsim=10000):
     shape = (20,10)
     observed = np.ones(shape, np.bool)
     for i in range(10):
         observed[i,i] = 0
         observed[10+i,i] = 0
-    observed[0] = 0
+    observed[0,:-1] = 0
     fig(observed, 'deterministic2_matrixcomp.pdf', nsim=nsim)
 
-def fig6(nsim=3000):
+def fig6(nsim=10000):
     shape = (10,5)
     fig((0.7, shape), 'small_matrixcomp_random.pdf', nsim=nsim)
 
