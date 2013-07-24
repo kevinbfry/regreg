@@ -46,7 +46,7 @@ def matrix_completion_knot(X, R, soln,
         G[i,i] = (np.multiply.outer(U[:,0], V[0]) * C_X).sum() 
         neg_hessian[i,i] = (np.multiply.outer(U[:,0], V[0]) * Z).sum() 
 
-    H = G*L - neg_hessian
+    H = neg_hessian - G*L
     evalsG, evecsG = np.linalg.eigh(G)
     Ginvsqrt = np.dot(evecsG, (1./np.sqrt(evalsG)[:,np.newaxis]* evecsG.T))
     Hvals = np.linalg.eigvalsh(np.dot(Ginvsqrt, np.dot(H, Ginvsqrt)))
@@ -78,8 +78,10 @@ def matrix_completion_knot(X, R, soln,
                                                    tol=tol,
                                                    rho=np.sqrt(max(n,p)),
                                                    min_iters=min_iters)
+    elif method == 'explicit':
+        Mplus, Mminus, next_soln = min(Hvals), np.inf, None
     else:
-        raise ValueError('method must be one of ["nesta", "tfocs", "admm"]')
+        raise ValueError('method must be one of ["nesta", "tfocs", "admm", "explicit"]')
 
     dual = rr.operator_norm((n,p), lagrange=1)
 
@@ -109,31 +111,32 @@ def matrix_completion_knot(X, R, soln,
                                                 sign=-1,
                                                 rho=np.sqrt(p),
                                                 min_iters=min_iters)
+        elif method == 'explicit':
+            pass
         else:
-            raise ValueError('method must be one of ["nesta", "tfocs", "admm"]')
+            raise ValueError('method must be one of ["nesta", "tfocs", "admm", "explicit"]')
     else:
         Mminus = np.inf
 
     return (L, -Mplus, Mminus, C_X, tangent_vectors, var, U, next_soln, Hvals)
 
 def first_test(X, Y, nsim=10000,
-               method='cdf',
+               method='explicit',
                sigma=1):
     X = rr.astransform(X)
     soln = np.zeros(X.input_shape)
     (L, Mplus, Mminus, _, _, 
      var, _, _, H) = matrix_completion_knot(X, Y, 
                                             soln,
-                                            method='admm',
+                                            method=method,
                                             tol=1.e-12)
     sd = np.sqrt(var) * sigma
-    #Mplus = Mplus - min(min(Mplus+H), 0)
-    #Mplus = max(-H)
+
+    print L/sd, Mplus/sd, Mminus/sd, H/sd
     pval = Q_0(L/sd, Mplus/sd, Mminus/sd, H/sd, nsim=nsim)
 
     if pval > 1:
         pval = 1
 
-    print pval
     return pval
 
