@@ -5,7 +5,7 @@ import numpy as np, random, os
 def simulate_null(data):
     if type(data) == type(()): # it is a (proportion, shape) tuple
         proportion, shape = data
-        observed = np.random.binomial(1, proportion,shape).astype(np.bool)
+        observed = np.random.binomial(1, proportion, shape).astype(np.bool)
     else:  # it is a boolean indicator matrix
         observed = data
 

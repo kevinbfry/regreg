@@ -8,11 +8,11 @@ from regreg.knots import (find_C_X,
                           chi_pvalue,
                           Q_0)
 
-def matrix_completion_knot(X, R, soln, 
-                           epsilon=([1.e-2] + [1.e-4]*3 + [1.e-5]*3 + 
-                                    [1.e-6]*50 + [1.e-8]*200), tol=1.e-10, 
-                           method='admm',
-                           min_iters=200):
+def nuclear_norm_knot(X, R, soln, 
+                      epsilon=([1.e-2] + [1.e-4]*3 + [1.e-5]*3 + 
+                               [1.e-6]*50 + [1.e-8]*200), tol=1.e-10, 
+                      method='admm',
+                      min_iters=200):
     """
     Find an approximate matrix completion knot
     """
@@ -126,17 +126,88 @@ def first_test(X, Y, nsim=10000,
     X = rr.astransform(X)
     soln = np.zeros(X.input_shape)
     (L, Mplus, Mminus, _, _, 
-     var, _, _, H) = matrix_completion_knot(X, Y, 
+     var, _, _, H) = nuclear_norm_knot(X, Y, 
                                             soln,
                                             method=method,
                                             tol=1.e-12)
     sd = np.sqrt(var) * sigma
 
-    print L/sd, Mplus/sd, Mminus/sd, H/sd
     pval = Q_0(L/sd, Mplus/sd, Mminus/sd, H/sd, nsim=nsim)
 
     if pval > 1:
         pval = 1
 
     return pval
+
+
+def check_knots(nsim=50, seed=0):
+
+    shape_nn = (100, 20)
+
+    np.random.seed(seed)
+    def solve_nuclear_norm(X, Y, L, tol=1.e-5, min_its=10):
+        """
+        Solve the nuclear norm problem with design matrix X, outcome Y
+        and Lagrange parameter L.
+        """
+        loss = rr.squared_error(X, Y)
+        penalty = rr.nuclear_norm(shape_nn, lagrange=L)
+        problem = rr.simple_problem(loss, penalty)
+        soln = problem.solve(tol=tol, min_its=min_its)
+        resid = Y - X.linear_map(soln).copy()
+        return soln, resid
+
+    def find_next_knot_nn(X, R, soln, L, multiplicity, niter=50, verbose=False):
+
+        loss = rr.squared_error(X, R)
+
+        L2 = L
+        for _ in range(niter):
+            grad = loss.smooth_objective(soln, mode='grad')
+            Lcandidate = (sorted(np.linalg.svd(grad)[1])[-(multiplicity+1)] + L2) / 2.
+            if verbose:
+                print sorted(np.linalg.svd(grad)[1])[-3:], Lcandidate
+            soln = solve_nuclear_norm(X, R, Lcandidate, tol=1.e-12, min_its=100)[0]
+            L2 = Lcandidate
+
+        return L, L2
+
+    values = []
+    for i in range(nsim):
+        observed_nn = np.random.binomial(1,0.3,shape_nn).astype(np.bool)
+        X_nn = rr.selector(observed_nn, shape_nn)
+
+        Z_nn = np.random.standard_normal(observed_nn.sum())
+        U, D, V = np.linalg.svd(X_nn.adjoint_map(Z_nn))
+        soln_nn = np.zeros(X_nn.input_shape)
+        lagrange_nn = D.max()
+
+        strong_rules_knot = find_next_knot_nn(X_nn, Z_nn, soln_nn, lagrange_nn, 1, verbose=False,
+                                              niter=40)[1]
+        Mplus = nuclear_norm_knot(X_nn, Z_nn, 
+                                  soln_nn,
+                                  method='admm')[1]
+
+        Mplus2 = nuclear_norm_knot(X_nn, Z_nn, 
+                                  soln_nn,
+                                  method='explicit')[1]
+
+        values.append([Mplus, Mplus2, strong_rules_knot])
+        print values[-1]
+
+    values = np.array(values)
+    np.save('nuclear_norm_knots.npy', np.array(values))
+
+    from matplotlib import pyplot as plt
+
+    plt.clf()
+    plt.scatter(values[:,0], values[:,1], label=r'ADMM vs. $-min(\Lambda_{\eta^*})$')
+    plt.legend(loc='lower right')
+    plt.savefig('nuclear_norm_knots1.png', dpi=200)
+
+    plt.clf()
+    plt.scatter(values[:,0], values[:,2], c='r', label=r'ADMM vs. $\lambda_2$')
+    plt.legend(loc='lower right')
+    plt.savefig('nuclear_norm_knots2.png', dpi=200)
+
 

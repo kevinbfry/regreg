@@ -8,20 +8,6 @@ from regreg.knots import (find_C_X, linear_fractional_admm,
                           chi_pvalue)
 from lasso import signed_basis_vector
 
-def solve_glasso(X, Y, groups, L, tol=1.e-5):
-    """
-    Solve the nuclear norm problem with design matrix X, outcome Y
-    and Lagrange parameter L.
-    """
-    n, p = X.shape
-    X = rr.astransform(X)
-    loss = rr.squared_error(X, Y)
-    penalty = rr.group_lasso(groups, lagrange=L)
-    problem = rr.simple_problem(loss, penalty)
-    soln = problem.solve(tol=tol)
-    resid = Y - X.linear_map(soln).copy()
-    return soln, resid
-
 def glasso_knot(X, R, groups, soln, 
                 epsilon=([1.e-2] + [1.e-4]*3 + [1.e-5]*3 + 
                          [1.e-6]*50 + [1.e-8]*200)
@@ -142,180 +128,6 @@ def glasso_knot(X, R, groups, soln,
 
     return (L, -Mplus, Mminus, C_X, tangent_vectors, var, U, C_X, next_soln, kmax, wmax)
 
-def maximum_pinned(X_h, w_h, X_g, w_g, P_g, y):
-    """
-    Compute the maximum within group $h$ knowing that group $g$ achieved
-    $\lambda_1$.
-
-    This function computes 
-
-    .. math::
-
-        \sup_{v_h:\|v_h\|_2=1} \frac{w_h^{-l}v_h^TX_h^T(I - P_g)y}{1 - \frac{w_g}{w_h} 
-         \frac{(y^TX_gX_g^Ty)^{1/2}}{\|X_gX_g^Ty\|^2_2} v_h^TX_h^TX_g X_g^Ty}
-
-    XXX TODO: return the maximizer as well -- should help for group LASSO paths.
-
-    Parameters
-    ----------
-
-    X_h : np.ndarray(np.float)
-        Design matrix for group $h$
-
-    w_h : float
-        Weight for group $h$
-
-    X_g_w : np.ndarray(np.float)
-        Weighed design matrix for group $g$
-
-    P_g : np.ndarray(np.float)
-        Projection onto column space of $X_g$. For now, 
-        we have implicitly been assuming that $P_g=X_gX_g^T$.
-
-    y : np.ndarray(np.float)
-        The outcome.
-
-    Returns
-    -------
-
-    value : float
-        The achived supremum in the above problem.
-
-    >>> np.random.seed(1)
-    >>> X, Y, G, W = simulate_random(100, 6, 4)
-    >>> Xh = X[:,G[0]]
-    >>> wh = W[0]
-    >>> gmax = G[3]
-    >>> wmax = W[3]
-    >>> Xmax = X[:,gmax] / W[3]
-    >>> Pmax = np.dot(Xmax, Xmax.T)
-    >>> maximum_pinned(Xh, wh, Xmax, Pmax, Y)
-    1.0096735125191472
-
-    """
-    u_g = np.dot(X_g.T, y)
-    u_g /= np.linalg.norm(u_g)
-    
-    a = np.dot(X_h.T, y - np.dot(P_g,y)) 
-    
-    X_gu_g = np.dot(X_g, u_g)
-    b = w_g * np.dot(X_h.T, X_gu_g) / (np.linalg.norm(X_gu_g)**2)
-    
-    a_dot_b = np.dot(a.T,b)
-    norm_a = np.linalg.norm(a)
-    norm_b = np.linalg.norm(b)
-    
-    return subproblem(a / w_h, b / w_h)
-
-def subproblem(a, b):
-    """
-    Compute
-
-    .. math::
-    
-       \inf_{\|x\|_2 = 1} \frac{a^Tx}{1-b^Tx}
-    """
-
-    a = a
-    b = b
-
-    a_dot_b = np.dot(a.T,b)
-    norm_a = np.linalg.norm(a)
-    norm_b = np.linalg.norm(b)
-    
-    value = norm_a**2 / (np.sqrt(norm_a**2 - norm_a**2 * norm_b**2 + a_dot_b**2) - a_dot_b)
-    return value
-
-def test_statistic(X, Y, groups, weights, sigma=1):
-    """
-    The function computes the relevant quantities needed 
-    to compute our $p$-values.
-
-    Parameters
-    ----------
-
-    X : np.ndarray(np.float)
-        Design matrix
-
-    Y : np.ndarray(np.float)
-        Outcome
-
-    groups: [index_obj]
-        Sequence of groups, each group being an index into the columns of X
-
-    weights: [float]
-        Sequence of weights for each group.
-
-    Returns
-    -------
-
-    T : float
-        Normalized gap between $\lambda_1$ and $\lambda_2$.
-    
-    L1: float
-        $\lambda_1$, the first $\lambda$ for which the group LASSO 
-        solution is non-zero.
-
-    L2: float
-        $\lambda_2$, the candidate $\lambda$ for when the next group is added.
-
-    gmax : index_obj
-        Group which achieves $\lambda_1$
-
-    weight_gmax : float
-        Weight of group that achieved $\lambda_1$
-
-    rank : float
-        Rank of $X_{g_{\max}}$ -- should round to an integer.
-
-    pvalue : float
-        P-value
-
-    >>> np.random.seed(1)
-    >>> X, Y, G, W = simulate_random(100, 6, 4)
-    >>> test_statistic(X,Y,G,W)
-    (0.31521078773401379, 2.7386809827394636, 2.6235851429097683, slice(10, 15, None), 1.0000969506876749, 4.9999999999999982)
-    >>> 
-
-    """
-    grad = np.dot(X.T, Y) 
-    G = np.zeros(grad.shape, np.int)
-    W = {}
-    for i, g in enumerate(groups):
-        G[g] = i
-        W[i] = weights[i]
-    dual = rr.group_lasso_dual(G, weights=W, lagrange=1)
-
-    terms = dual.terms(grad)
-    imax = np.argmax(terms)
-    gmax = G == imax
-
-    X_gmax = X[:,gmax]
-    P_gmax = np.dot(X_gmax, np.linalg.pinv(X_gmax))
-
-    V = [maximum_pinned(X[:,G == j], weight, X_gmax, 
-                        weights[imax], P_gmax, Y) 
-         for j, weight in enumerate(weights) if j != imax]
-    M_u_gmax = max(V)
-
-    u_gmax = grad[G == imax].copy()
-    u_gmax /= np.linalg.norm(u_gmax)
-    
-    L1 = np.dot(u_gmax, grad[gmax]) / weights[imax]
-    print L1, np.max(terms), 'max'
-
-    var_f_u_gmax = np.linalg.norm(np.dot(X_gmax, u_gmax / weights[imax]))**2 * sigma**2
-    print L1, var_f_u_gmax, weights[imax], 'var'
-    T = L1 * (L1 - M_u_gmax) / var_f_u_gmax
-    rank = np.diag(P_gmax).sum()
-
-    W = weights[imax]
-    L2 = M_u_gmax 
-    S = np.sqrt(var_f_u_gmax)
-    print L1/S, L2/S, chi.cdf(L1/S, rank), chi.cdf(L2/S, rank)
-    pvalue = (1 - chi.cdf(L1 / S, rank)) / (1 - chi.cdf(L2 / S, rank))
-    return T, L1, M_u_gmax, gmax, W, rank, var_f_u_gmax, pvalue
-
 def simulate_random(n, g, k, orthonormal=True, beta=None, max_size=None):
     """
     Generate a random group of design matrices
@@ -374,7 +186,12 @@ def simulate_random(n, g, k, orthonormal=True, beta=None, max_size=None):
             X[:,group] = np.linalg.svd(X[:,group], full_matrices=False)[0]
     Y = np.dot(X, beta) + np.random.standard_normal(n)
     weights = np.random.sample(g) + 1
-    return X, Y, groups, weights
+    G = np.zeros(p)
+    W = {}
+    for i, g in enumerate(groups):
+        G[g] = i
+        W[i] = weights[i]
+    return X, Y, G, W
     
 def simulate_fixed(n, g, k, orthonormal=True, beta=None, max_size=None, useA=True):
     """
@@ -451,51 +268,6 @@ def simulate_fixed(n, g, k, orthonormal=True, beta=None, max_size=None, useA=Tru
     weights = np.sqrt(k) * np.ones(g)
     return X, Y, groups, weights
 
-
-def test_main():
-
-    import rpy2.robjects as rpy
-    from scipy.stats import chi
-
-    try:
-        from rpy2.robjects import pandas2ri
-        pandas2ri.activate()
-    except ImportError:
-        pandas2ri = None
-        from rpy2.robjects import numpy2ri
-        numpy2ri.activate()
-
-    n, p = 100, 200
-    X_lasso = np.random.standard_normal((n,p))
-
-    beta_lasso = np.zeros(p)
-    beta_lasso[:3] = [0.1,1.5,2.]
-    Y_lasso = np.random.standard_normal(n) + np.dot(X_lasso, beta_lasso)
-
-    penalty = rr.group_lasso(np.arange(p), lagrange=1)
-    dual_penalty = penalty.conjugate
-
-    lagrange_lasso = 0.995 * dual_penalty.seminorm(np.dot(X_lasso.T,Y_lasso), lagrange=1.)
-    print lagrange_lasso, 0.995 * np.fabs(np.dot(X_lasso.T, Y_lasso)).max(), 'huh'
-
-    soln_lasso, resid_lasso = solve_glasso(X_lasso, Y_lasso, np.arange(p), lagrange_lasso, tol=1.e-10)
-
-    L, Mplus, Mminus, C_X, tv, var = glasso_knot(X_lasso, resid_lasso, soln_lasso, lagrange_lasso)
-    print Mplus, Mminus
-    print ((L, Mplus), find_next_knot_lasso(X_lasso, resid_lasso, soln_lasso, lagrange_lasso))
-    print lasso_knot_covstat(X_lasso, resid_lasso, soln_lasso, lagrange_lasso)[:3]
-
-    rpy.r.assign('X', X_lasso)
-    rpy.r.assign('Y', Y_lasso)
-    L = rpy.r("""
-    Y = as.numeric(Y)
-    library(lars)
-    L = lars(X, Y, type='lasso', intercept=FALSE, normalize=FALSE, max.steps=10)
-    L$lambda
-    """)
-
-    print L[:2]
-
 def trignometric_form(num, den, weight, tol=1.e-6):
     a, b, w = num, den, weight # shorthand
 
@@ -534,3 +306,85 @@ def first_test(X, Y, groups, weights={}, nsim=50000,
 
 def pvalue(L, Mplus, Mminus, sd, k, method='MC', nsim=1000):
     return chi_pvalue(L, Mplus, Mminus, sd, k, method=method, nsim=nsim)
+
+def check_knots(nsim=50, seed=0, orthonormal=False, null=True):
+
+    shape_nn = (100, 20)
+
+    np.random.seed(seed)
+    def solve_group_lasso(X, Y, groups, weights, L, tol=1.e-5, min_its=10):
+        """
+        Solve the nuclear norm problem with design matrix X, outcome Y
+        and Lagrange parameter L.
+        """
+        X = rr.astransform(X)
+        loss = rr.squared_error(X, Y)
+        penalty = rr.group_lasso(groups, weights=weights, lagrange=L)
+        problem = rr.simple_problem(loss, penalty)
+        soln = problem.solve(tol=tol, min_its=min_its)
+        resid = Y - X.linear_map(soln).copy()
+        return soln, resid
+
+    def find_next_knot_gl(X, R, soln, groups, weights, L, multiplicity, niter=50, verbose=False):
+
+        loss = rr.squared_error(X, R)
+        penalty = rr.group_lasso(groups, weights=weights, lagrange=L)
+        dual = rr.group_lasso_dual(groups, weights=weights, lagrange=1)
+        L2 = L
+        for _ in range(niter):
+            grad = loss.smooth_objective(soln, mode='grad')
+            Lcandidate = (sorted(dual.terms(grad))[-2]  +  L2) / 2.
+            soln = solve_group_lasso(X, R, groups, weights, Lcandidate, tol=1.e-13,
+                                     min_its=1000)[0]
+            L2 = Lcandidate
+            grad = loss.smooth_objective(soln, mode='grad')
+            print sorted(dual.terms(grad))[-3:], Lcandidate
+        return L, L2
+
+    n, g, k = 100, 10, 5
+    values = []
+    for i in range(nsim):
+        X, Y, groups, weights = simulate_random(n, g, k, orthonormal=orthonormal)
+        if not null:
+            beta = np.zeros(X.shape[1])
+            beta[groups == 0] = np.random.standard_normal((groups == 0).sum()) * 10
+            Y += np.dot(X, beta)
+        soln = np.zeros(X.shape[1])
+        dual = rr.group_lasso_dual(groups, weights=weights, lagrange=1)
+        penalty = rr.group_lasso(groups, weights=weights, lagrange=1)
+        L = dual.seminorm(np.dot(X.T, Y))
+        loss = rr.squared_error(X, Y)
+        strong_rules_knot = find_next_knot_gl(X, Y, soln, groups, weights, L, 1, verbose=False,
+                                              niter=50)[1]
+        Mplus = glasso_knot(X, Y, groups, soln,
+                            weights=weights,
+                            method='admm',
+                            min_iters=300,
+                            tol=1.e-12)[1]
+
+        Mplus2 = glasso_knot(X, Y, groups, soln,
+                             weights=weights,
+                             method='explicit')[1]
+
+        soln = solve_group_lasso(X, Y, groups, weights, Mplus2, tol=1.e-13, 
+                                 min_its=1000)[0]
+        grad = loss.smooth_objective(soln, mode='grad')
+        print sorted(penalty.terms(soln))[-3:], 'terms'
+        print L, Mplus
+        values.append([Mplus, Mplus2, strong_rules_knot])
+        print values[-1]
+
+    values = np.array(values)
+    from matplotlib import pyplot as plt
+
+    np.save('group_lasso_knots.npy', np.array(values))
+
+    plt.scatter(values[:,0], values[:,1], label=r'ADMM vs. $-min(\Lambda_{\eta^*})$')
+    plt.legend(loc='lower right')
+    plt.savefig('group_lasso_knots1.png', dpi=300)
+
+    plt.clf()
+    plt.scatter(values[:,0], values[:,2], c='r', label=r'ADMM vs. $\lambda_2$')
+    plt.legend(loc='lower right')
+    plt.savefig('group_lasso_knots2.png', dpi=300)
+
