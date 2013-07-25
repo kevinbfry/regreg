@@ -1,3 +1,4 @@
+import os
 import regreg.knots.pca as PCA
 import numpy as np, random
 
@@ -10,13 +11,31 @@ def simulate_null(n,p):
         nsim = 5000
     return PCA.pvalue(X, sigma=sigma, nsim=nsim)
 
-def fig(shape, fname, nsim=10000):
+def fig(shape, fname, nsim=10000, output_cycle=5000):
     IP = get_ipython()
     P = []
-    for _ in range(nsim):
+    for i in range(nsim):
         P.append(simulate_null(*shape))
+        
+        if i % output_cycle == 0:
+            dname = os.path.splitext(fname)[0] + '.npy'
+            np.save(dname, np.array(P))
+
+            IP.magic('load_ext rmagic')
+            IP.magic('R -i P')
+            IP.run_cell_magic(u'R', u'', '''
+        pdf('%s')
+        qqplot(P, runif(%d), xlab='P-value', ylab='Uniform', pch=23, cex=0.5, bg='red')
+        abline(0,1, lwd=3, lty=2)
+        dev.off()
+        ''' % (fname, nsim))
+
     IP.magic('load_ext rmagic')
     IP.magic('R -i P')
+
+    dname = os.path.splitext(fname)[0] + '.npy'
+    np.save(dname, P)
+
     IP.run_cell_magic(u'R', u'', '''
 pdf('%s')
 qqplot(P, runif(%d), xlab='P-value', ylab='Uniform', pch=23, cex=0.5, bg='red')

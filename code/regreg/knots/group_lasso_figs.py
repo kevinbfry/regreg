@@ -1,6 +1,7 @@
 IP = get_ipython()
 IP.magic('load_ext rmagic')
 
+import os
 import regreg.knots.group_lasso as GL
 import regreg.api as rr
 from regreg.affine import fused_lasso 
@@ -25,10 +26,13 @@ def simulate_null(X, groups, weights={}, orthonormal=False):
 
 def fig(X, fname, groups, nsim=10000, weights={}):
     P = []
-    for _ in range(nsim):
+    for i in range(nsim):
         pval = simulate_null(X, groups, weights=weights)
         if pval is not None:
             P.append(pval)
+        if i % 1000 == 0:
+            dname = os.path.splitext(fname)[0] + '.npy'
+            np.save(dname, np.array(P))
     P = np.array(P)
     make_fig(fname, P)
 
@@ -36,6 +40,8 @@ def make_fig(fname, P):
     IP = get_ipython()
     IP.magic('load_ext rmagic')
     IP.magic('R -i P')
+    dname = os.path.splitext(fname)[0] + '.npy'
+    np.save(dname, P)
     IP.run_cell_magic(u'R', u'', '''
 pdf('%s')
 qqplot(P, runif(%d), xlab='P-value', ylab='Uniform', pch=23, cex=0.5, bg='red')

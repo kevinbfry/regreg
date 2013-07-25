@@ -339,13 +339,13 @@ def M(H, Vplus, Vminus, mu, sigma, M, nsim=100):
     
     Z = np.fabs(np.random.standard_normal(nsim)) * sigma 
     M = M - mu
-    proportion = (Z < Vminus - u).sum() * 1. / nsim
-    Z = Z[Z < Vminus - u]
-    exponent = np.log(np.add.outer(Z,H) + u).sum(1) - (M*Z - M**2/2.) / sigma**2
+    proportion1 = (Z < Vminus - Vplus).sum() * 1. / nsim
+    Z1 = Z[Z < Vminus - Vplus]
+    exponent = np.log(np.add.outer(Z1,H) + M).sum(1) - (M*Z1 + M**2/2.) / sigma**2
     C = exponent.max()
-    return np.exp(exponent - C).mean() * proportion, C
+    value = (np.exp(exponent - C).mean() * proportion, C)
 
-def Q(H, Vplus, Vminus, mu, sigma, M, nsim=100):
+def Q_alt(H, Vplus, Vminus, mu, sigma, M, nsim=100):
     """
     Assumes H are eigenvalues of a symmetric matrix. Computes 
     an approximation of 
@@ -364,7 +364,7 @@ def Q(H, Vplus, Vminus, mu, sigma, M, nsim=100):
     """
     
     exponent_1, C1 = M(H, Vplus, Vminus, mu, sigma, M, nsim=nsim)
-    exponent_2, C2 = M(H, Vplus, Vminus, mu, sigma, Vminus, nsim=nsim)
+    exponent_2, C2 = M(H, Vplus, Vminus, mu, sigma, Vplus, nsim=nsim)
     
     return np.exp(C1-C2) * exponent_1 / exponent_2
 
@@ -373,13 +373,13 @@ def q_0(M, Mminus, H, nsim=100):
     keep = Z < Mminus - M
     proportion = keep.sum() * 1. / nsim
     Z = Z[keep]
-    M = max(max(-H), M)
     if H != []:
         HM = np.clip(H + M, 0, np.inf)
         exponent = np.log(np.add.outer(Z, HM)).sum(1) - M*Z - M**2/2.
     else:
         exponent = - M*Z - M**2/2.
     C = exponent.max()
+
     return np.exp(exponent - C).mean() * proportion, C
 
 def Q_0(L, Mplus, Mminus, H, nsim=100):

@@ -1,3 +1,4 @@
+import os
 import regreg.knots.lasso as K
 from regreg.affine import fused_lasso 
 import regreg.affine as ra
@@ -13,10 +14,15 @@ def simulate_null(X):
 def fig(X, fname, nsim=10000):
     IP = get_ipython()
     P = []
-    for _ in range(nsim):
+    for i in range(nsim):
+        if i % 1000 == 0:
+            dname = os.path.splitext(fname)[0] + '.npy'
+            np.save(dname, np.array(P))
         P.append(simulate_null(X))
     IP.magic('load_ext rmagic')
     IP.magic('R -i P')
+    dname = os.path.splitext(fname)[0] + '.npy'
+    np.save(dname, P)
     IP.run_cell_magic(u'R', u'', '''
 pdf('%s')
 qqplot(P, runif(%d), xlab='P-value', ylab='Uniform', pch=23, cex=0.5, bg='red')

@@ -506,7 +506,7 @@ def trignometric_form(num, den, weight, tol=1.e-6):
     Stheta = np.sqrt(1-Ctheta**2)
     theta = np.arccos(Ctheta)
 
-    Sphi = np.linalg.norm(den) * Stheta / w
+    Sphi = np.linalg.norm(b) * Stheta / w
     phi1 = np.arcsin(Sphi)
     phi2 = np.pi - phi1
 
