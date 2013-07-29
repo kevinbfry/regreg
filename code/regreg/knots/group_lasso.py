@@ -396,7 +396,7 @@ def check_knots(nsim=50, seed=0, orthonormal=False, null=True):
     from matplotlib import pyplot as plt
 
     plt.clf()
-    plt.scatter(values[:,0], values[:,1], label=r'ADMM vs. $-min(\Lambda_{\eta^*})$')
+    plt.scatter(values[:,0], values[:,1], label=r'ADMM vs. explicit')
     plt.legend(loc='lower right')
     plt.savefig('group_lasso_knots1.pdf')
 

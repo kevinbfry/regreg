@@ -1,4 +1,4 @@
-import numpy as np
+import numpy as np, os
 
 import regreg.api as rr
 from regreg.knots import (find_C_X, 
@@ -204,7 +204,7 @@ def check_knots(nsim=50, seed=0):
     from matplotlib import pyplot as plt
 
     plt.clf()
-    plt.scatter(values[:,0], values[:,1], label=r'ADMM vs. $-min(\Lambda_{\eta^*})$')
+    plt.scatter(values[:,0], values[:,1], label=r'ADMM vs. explicit')
     plt.legend(loc='lower right')
     plt.savefig('nuclear_norm_knots1.pdf')
 
