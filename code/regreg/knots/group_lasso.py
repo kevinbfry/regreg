@@ -184,6 +184,10 @@ def simulate_random(n, g, k, orthonormal=True, beta=None, max_size=None):
     if orthonormal:
         for group in groups:
             X[:,group] = np.linalg.svd(X[:,group], full_matrices=False)[0]
+    else:
+        for group in groups:
+            X[:,group] /= np.linalg.norm(X[:,group])
+
     Y = np.dot(X, beta) + np.random.standard_normal(n)
     weights = np.random.sample(g) + 1
     G = np.zeros(p)
@@ -379,6 +383,7 @@ def check_knots(nsim=50, seed=0, orthonormal=False, null=True):
 
     np.save('group_lasso_knots.npy', np.array(values))
 
+    plt.clf()
     plt.scatter(values[:,0], values[:,1], label=r'ADMM vs. $-min(\Lambda_{\eta^*})$')
     plt.legend(loc='lower right')
     plt.savefig('group_lasso_knots1.png', dpi=300)
