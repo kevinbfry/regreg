@@ -296,6 +296,13 @@ def trignometric_form(num, den, weight, tol=1.e-6):
     else:
         return min([V1,V2]), max([V1,V2])
 
+def exp_pvalue(L, Mplus, Mminus, sd):
+    '''
+    exponential approximation
+    '''
+    return np.exp(-L*(L-Mplus)/sd**2)
+
+
 def first_test(X, Y, groups, weights={}, nsim=50000,
                method='MC',
                sigma=1):
@@ -306,7 +313,8 @@ def first_test(X, Y, groups, weights={}, nsim=50000,
                                        method='explicit',
                                        weights=weights)
     sd = np.sqrt(var) * sigma
-    return pvalue(L, Mplus, Mminus, sd, k, method=method, nsim=nsim)
+    p = pvalue(L, Mplus, Mminus, sd, k, method=method, nsim=nsim)
+    return p, exp_pvalue(L, Mplus, Mminus, sd)
 
 def pvalue(L, Mplus, Mminus, sd, k, method='MC', nsim=1000):
     return chi_pvalue(L, Mplus, Mminus, sd, k, method=method, nsim=nsim)

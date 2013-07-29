@@ -8,7 +8,8 @@ from regreg.affine import fused_lasso
 import regreg.affine as ra
 import numpy as np, random
 
-import mpmath
+import statsmodels.api as sm # recommended import according to the docs
+import matplotlib.pyplot as plt
 
 def simulate_null(X, groups, weights={}, orthonormal=False):
 
@@ -36,18 +37,32 @@ def fig(X, fname, groups, nsim=10000, weights={}):
     P = np.array(P)
     make_fig(fname, P)
 
-def make_fig(fname, P):
+def make_fig(fname, Pv):
+
     IP = get_ipython()
     IP.magic('load_ext rmagic')
+
+    P = Pv[:,0]
     IP.magic('R -i P')
     dname = os.path.splitext(fname)[0] + '.npy'
-    np.save(dname, P)
+    np.save(dname, Pv)
+
     IP.run_cell_magic(u'R', u'', '''
 pdf('%s')
 qqplot(P, runif(%d), xlab='P-value', ylab='Uniform', pch=23, cex=0.5, bg='red')
 abline(0,1, lwd=3, lty=2)
 dev.off()
 ''' % (fname, P.shape[0]))
+
+    P = Pv[:,1]
+    IP.magic('R -i P')
+    dname = os.path.splitext(fname)[0] + '.npy'
+    IP.run_cell_magic(u'R', u'', '''
+pdf('%s')
+qqplot(P, runif(%d), xlab='P-value', ylab='Uniform', pch=23, cex=0.5, bg='red')
+abline(0,1, lwd=3, lty=2)
+dev.off()
+''' % (fname.replace('.pdf', '_exp.pdf'), P.shape[0]))
 
 def fig1(nsim=10000):
     X = np.arange(12).reshape((3,4)) + 0.1 * np.random.standard_normal((3,4))
@@ -147,6 +162,40 @@ def fig10(nsim=10000):
     X /= X.std(0)
     fig(X, 'several_nested_groups.pdf', groups, nsim=nsim, weights=
         {0:1.9,2:1.9,5:1.3})
+
+
+def fig11():
+    plt.clf()
+
+    P = []
+    for f in ['several_nested_groups.npy',
+              'small_group_lasso.npy',
+              'fat_group_lasso.npy',
+              'tall_group_lasso.npy',
+              'square_group_lasso.npy',
+              'lars_diabetes_group.npy',
+              'lars_diabetes_lasso_as_group.npy',
+              'nested_groups_big_first.npy',
+              'nested_groups_smaller_first.npy',
+              'two_nested_groups.npy'              
+              'several_nested_groups.npy']:
+        a = np.load(f)
+        if a.ndim == 2:
+            P.append(a[:,0])
+        else:
+            P.append(a)
+    P = np.asarray(P).reshape(-1)
+    np.random.shuffle(P)
+    P = P[:20000]
+    ecdf = sm.distributions.ECDF(P)
+    x = np.linspace(min(P), max(P), P.shape[0])
+    y = ecdf(x)
+    plt.step(x, y, linewidth=4, color='red')
+
+    plt.plot([0,1],[0,1], '--', linewidth=2, color='black')
+    plt.savefig('group_lasso_pval_ecdf.pdf')
+
+
 
 def produce_figs(seed=0):
     np.random.seed(seed)

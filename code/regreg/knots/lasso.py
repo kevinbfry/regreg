@@ -301,6 +301,12 @@ if __name__ == '__main__':
 def pvalue(L, Mplus, Mminus, sd, method='cdf', nsim=1000):
     return chi_pvalue(L, Mplus, Mminus, sd, 1, method=method, nsim=nsim)
 
+def exp_pvalue(L, Mplus, Mminus, sd):
+    '''
+    exponential approximation
+    '''
+    return np.exp(-L*(L-Mplus)/sd**2)
+
 def first_test(X, Y, nsim=50000,
                method='cdf',
                sigma=1):
@@ -310,4 +316,5 @@ def first_test(X, Y, nsim=50000,
                                 soln,
                                 method='explicit')
     sd = np.sqrt(var) * sigma
-    return pvalue(L, Mplus, Mminus, sd, method=method, nsim=nsim)
+    p = pvalue(L, Mplus, Mminus, sd, method=method, nsim=nsim)
+    return p, exp_pvalue(L, Mplus, Mminus, sd)
