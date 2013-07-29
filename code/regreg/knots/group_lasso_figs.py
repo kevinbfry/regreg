@@ -170,14 +170,14 @@ def fig11():
     P = []
     for f in ['several_nested_groups.npy',
               'small_group_lasso.npy',
-              'fat_group_lasso.npy',
-              'tall_group_lasso.npy',
+              #'fat_group_lasso.npy',
+              #'tall_group_lasso.npy',
               'square_group_lasso.npy',
               'lars_diabetes_group.npy',
               'lars_diabetes_lasso_as_group.npy',
               'nested_groups_big_first.npy',
               'nested_groups_smaller_first.npy',
-              'two_nested_groups.npy'              
+              'two_nested_groups.npy',
               'several_nested_groups.npy']:
         a = np.load(f)
         if a.ndim == 2:
@@ -194,6 +194,31 @@ def fig11():
 
     plt.plot([0,1],[0,1], '--', linewidth=2, color='black')
     plt.savefig('group_lasso_pval_ecdf.pdf')
+
+def fig12():
+    plt.clf()
+
+    P = np.load('small_group_lasso.npy')[:,1]
+    ecdf = sm.distributions.ECDF(P)
+    x = np.linspace(min(P), max(P), P.shape[0])
+    y = ecdf(x)
+    plt.step(x, y, label=r'$3\times 4$', linewidth=2)
+
+    P = np.load('lars_diabetes_group.npy')[:,1]
+    ecdf = sm.distributions.ECDF(P)
+    x = np.linspace(min(P), max(P), P.shape[0])
+    y = ecdf(x)
+    plt.step(x, y, label=r'diabetes', linewidth=2)
+
+    P = np.load('several_nested_groups.npy')[:,1]
+    ecdf = sm.distributions.ECDF(P)
+    x = np.linspace(min(P), max(P), P.shape[0])
+    y = ecdf(x)
+    plt.step(x, y, label=r'nested groups', linewidth=2)
+
+    plt.plot([0,1],[0,1], '--', linewidth=1, color='black')
+    plt.legend(loc='upper left')
+    plt.savefig('group_lasso_exp_ecdf.pdf')
 
 
 
