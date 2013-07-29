@@ -48,5 +48,5 @@ def produce_figs(seed=0):
     IP = get_ipython()
     IP.magic('R set.seed(%d)' % seed)
 
-    [f() for f in [fig1, fig2]]
+    [f() for f in [fig1, fig2, fig3]]
 

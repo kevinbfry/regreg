@@ -1,4 +1,4 @@
-import numpy as np
+import numpy as np, os
 from scipy.stats import chi
 
 import regreg.api as rr
@@ -353,51 +353,55 @@ def check_knots(nsim=50, seed=0, orthonormal=False, null=True):
             print sorted(dual.terms(grad))[-3:], Lcandidate
         return L, L2
 
-    n, g, k = 100, 10, 5
-    values = []
-    for i in range(nsim):
-        X, Y, groups, weights = simulate_random(n, g, k, orthonormal=orthonormal)
-        if not null:
-            beta = np.zeros(X.shape[1])
-            beta[groups == 0] = np.random.standard_normal((groups == 0).sum()) * 10
-            Y += np.dot(X, beta)
-        soln = np.zeros(X.shape[1])
-        dual = rr.group_lasso_dual(groups, weights=weights, lagrange=1)
-        penalty = rr.group_lasso(groups, weights=weights, lagrange=1)
-        L = dual.seminorm(np.dot(X.T, Y))
-        loss = rr.squared_error(X, Y)
-        strong_rules_knot = find_next_knot_gl(X, Y, soln, groups, weights, L, 1, verbose=False,
-                                              niter=50)[1]
-        Mplus = glasso_knot(X, Y, groups, soln,
-                            weights=weights,
-                            method='admm',
-                            min_iters=300,
-                            tol=1.e-12)[1]
+    if not os.path.exists('group_lasso_knots.npy'):
 
-        Mplus2 = glasso_knot(X, Y, groups, soln,
-                             weights=weights,
-                             method='explicit')[1]
+        n, g, k = 100, 10, 5
+        values = []
+        for i in range(nsim):
+            X, Y, groups, weights = simulate_random(n, g, k, orthonormal=orthonormal)
+            if not null:
+                beta = np.zeros(X.shape[1])
+                beta[groups == 0] = np.random.standard_normal((groups == 0).sum()) * 10
+                Y += np.dot(X, beta)
+            soln = np.zeros(X.shape[1])
+            dual = rr.group_lasso_dual(groups, weights=weights, lagrange=1)
+            penalty = rr.group_lasso(groups, weights=weights, lagrange=1)
+            L = dual.seminorm(np.dot(X.T, Y))
+            loss = rr.squared_error(X, Y)
+            strong_rules_knot = find_next_knot_gl(X, Y, soln, groups, weights, L, 1, verbose=False,
+                                                  niter=50)[1]
+            Mplus = glasso_knot(X, Y, groups, soln,
+                                weights=weights,
+                                method='admm',
+                                min_iters=300,
+                                tol=1.e-12)[1]
 
-        soln = solve_group_lasso(X, Y, groups, weights, Mplus2, tol=1.e-13, 
-                                 min_its=1000)[0]
-        grad = loss.smooth_objective(soln, mode='grad')
-        print sorted(penalty.terms(soln))[-3:], 'terms'
-        print L, Mplus
-        values.append([Mplus, Mplus2, strong_rules_knot])
-        print values[-1]
+            Mplus2 = glasso_knot(X, Y, groups, soln,
+                                 weights=weights,
+                                 method='explicit')[1]
 
-    values = np.array(values)
+            soln = solve_group_lasso(X, Y, groups, weights, Mplus2, tol=1.e-13, 
+                                     min_its=1000)[0]
+            grad = loss.smooth_objective(soln, mode='grad')
+            print sorted(penalty.terms(soln))[-3:], 'terms'
+            print L, Mplus
+            values.append([Mplus, Mplus2, strong_rules_knot])
+            print values[-1]
+
+        values = np.array(values)
+        np.save('group_lasso_knots.npy', np.array(values))
+    else:
+        values = np.load('group_lasso_knots.npy')
+
     from matplotlib import pyplot as plt
-
-    np.save('group_lasso_knots.npy', np.array(values))
 
     plt.clf()
     plt.scatter(values[:,0], values[:,1], label=r'ADMM vs. $-min(\Lambda_{\eta^*})$')
     plt.legend(loc='lower right')
-    plt.savefig('group_lasso_knots1.png', dpi=300)
+    plt.savefig('group_lasso_knots1.pdf')
 
     plt.clf()
     plt.scatter(values[:,0], values[:,2], c='r', label=r'ADMM vs. $\lambda_2$')
     plt.legend(loc='lower right')
-    plt.savefig('group_lasso_knots2.png', dpi=300)
+    plt.savefig('group_lasso_knots2.pdf')
 

@@ -172,42 +172,45 @@ def check_knots(nsim=50, seed=0):
 
         return L, L2
 
-    values = []
-    for i in range(nsim):
-        observed_nn = np.random.binomial(1,0.3,shape_nn).astype(np.bool)
-        X_nn = rr.selector(observed_nn, shape_nn)
+    if not os.path.exists('nuclear_norm_knots.npy'):
+        values = []
+        for i in range(nsim):
+            observed_nn = np.random.binomial(1,0.3,shape_nn).astype(np.bool)
+            X_nn = rr.selector(observed_nn, shape_nn)
 
-        Z_nn = np.random.standard_normal(observed_nn.sum())
-        U, D, V = np.linalg.svd(X_nn.adjoint_map(Z_nn))
-        soln_nn = np.zeros(X_nn.input_shape)
-        lagrange_nn = D.max()
+            Z_nn = np.random.standard_normal(observed_nn.sum())
+            U, D, V = np.linalg.svd(X_nn.adjoint_map(Z_nn))
+            soln_nn = np.zeros(X_nn.input_shape)
+            lagrange_nn = D.max()
 
-        strong_rules_knot = find_next_knot_nn(X_nn, Z_nn, soln_nn, lagrange_nn, 1, verbose=False,
-                                              niter=40)[1]
-        Mplus = nuclear_norm_knot(X_nn, Z_nn, 
-                                  soln_nn,
-                                  method='admm')[1]
+            strong_rules_knot = find_next_knot_nn(X_nn, Z_nn, soln_nn, lagrange_nn, 1, verbose=False,
+                                                  niter=40)[1]
+            Mplus = nuclear_norm_knot(X_nn, Z_nn, 
+                                      soln_nn,
+                                      method='admm')[1]
 
-        Mplus2 = nuclear_norm_knot(X_nn, Z_nn, 
-                                  soln_nn,
-                                  method='explicit')[1]
+            Mplus2 = nuclear_norm_knot(X_nn, Z_nn, 
+                                      soln_nn,
+                                      method='explicit')[1]
 
-        values.append([Mplus, Mplus2, strong_rules_knot])
-        print values[-1]
+            values.append([Mplus, Mplus2, strong_rules_knot])
+            print values[-1]
 
-    values = np.array(values)
-    np.save('nuclear_norm_knots.npy', np.array(values))
+        values = np.array(values)
+        np.save('nuclear_norm_knots.npy', np.array(values))
+    else:
+        values = np.load('nuclear_norm_knots.npy')
 
     from matplotlib import pyplot as plt
 
     plt.clf()
     plt.scatter(values[:,0], values[:,1], label=r'ADMM vs. $-min(\Lambda_{\eta^*})$')
     plt.legend(loc='lower right')
-    plt.savefig('nuclear_norm_knots1.png', dpi=200)
+    plt.savefig('nuclear_norm_knots1.pdf')
 
     plt.clf()
     plt.scatter(values[:,0], values[:,2], c='r', label=r'ADMM vs. $\lambda_2$')
     plt.legend(loc='lower right')
-    plt.savefig('nuclear_norm_knots2.png', dpi=200)
+    plt.savefig('nuclear_norm_knots2.pdf')
 
 
