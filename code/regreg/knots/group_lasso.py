@@ -8,7 +8,7 @@ from regreg.knots import (find_C_X, linear_fractional_admm,
                           chi_pvalue)
 from lasso import signed_basis_vector
 
-def glasso_knot(X, R, groups, soln, 
+def glasso_knot(X, R, groups, 
                 epsilon=([1.e-2] + [1.e-4]*3 + [1.e-5]*3 + 
                          [1.e-6]*50 + [1.e-8]*200)
                 , tol=1.e-7, method='admm', weights=None,
@@ -306,10 +306,8 @@ def exp_pvalue(L, Mplus, Mminus, sd):
 def first_test(X, Y, groups, weights={}, nsim=50000,
                method='MC',
                sigma=1):
-    soln = np.zeros(X.shape[1])
     (L, Mplus, Mminus, _, _, 
      var, _, _, _, k, w) = glasso_knot(X, Y, groups, 
-                                       soln,
                                        method='explicit',
                                        weights=weights)
     sd = np.sqrt(var) * sigma

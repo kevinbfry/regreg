@@ -99,6 +99,95 @@ def fig8(nsim=10000):
     fig((0.1, shape), 'larger_matrixcomp_random.pdf', nsim=nsim,
         output_cycle=100)
 
+def fig9(nsim=10000):
+    shape = (20,10)
+    observed = np.ones(shape, np.bool)
+
+    for i in range(10):
+        observed[i,i] = 0
+        observed[10+i,i] = 0
+    observed[0,:-1] = 0
+
+    sigma = 0.1
+    X = rr.selector(observed, observed.shape)
+
+    L = []
+    P = []
+    for i in range(nsim):
+        Y = np.random.standard_normal(observed.sum()) * sigma
+        A = X.adjoint_map(Y)
+        lam_max = np.linalg.svd(A)[1].max()
+        L.append(lam_max)
+        Z = np.random.standard_normal((50,50))
+        P.append(np.linalg.svd(Z)[1].max())
+        if i % 1000 == 0:
+            print 'completed %d' % i
+
+    L = np.array(L)**2
+    L -= L.mean()
+    L /= L.std()
+
+    P = np.array(P)**2
+    P -= P.mean()
+    P /= P.std()
+
+    IP = get_ipython()
+    IP.magic('load_ext rmagic')
+    IP.magic('R -i L,P')
+    IP.run_cell_magic(u'R', u'', '''
+pdf('%s')
+plot(density(L), lwd=2, col='red')
+lines(density(P), lwd=1,lty=2)
+dev.off()
+pdf('%s')
+qqplot(L, P)
+''' % ('deterministic2_lammax.pdf', 'deterministic2_lammax_qq.pdf'))
+
+
+def fig10(nsim=10000):
+    shape = (20,10)
+    observed = np.ones(shape, np.bool)
+
+    for i in range(10):
+        observed[i,i] = 0
+        observed[10+i,i] = 0
+    observed[0,:-1] = 0
+
+    sigma = 0.1
+    X = rr.selector(observed, observed.shape)
+
+    L = []
+    P = []
+    for i in range(nsim):
+        Y = np.random.standard_normal(observed.sum()) * sigma
+        L1, Mplus = NN.nuclear_norm_knot(X, Y)[:2]
+        L.append(L1-Mplus)
+        Z = np.random.standard_normal((50,50))
+        L2, L1 = sorted(np.linalg.svd(Z)[1])[-2:]
+        P.append(L1-L2)
+        if i % 100 == 0:
+            print 'completed %d' % i
+
+    L = np.array(L)**2
+    L -= L.mean()
+    L /= L.std()
+
+    P = np.array(P)**2
+    P -= P.mean()
+    P /= P.std()
+
+    IP = get_ipython()
+    IP.magic('load_ext rmagic')
+    IP.magic('R -i L,P')
+    IP.run_cell_magic(u'R', u'', '''
+pdf('%s')
+plot(density(L), lwd=2, col='red')
+lines(density(P), lwd=1,lty=2)
+dev.off()
+pdf('%s')
+qqplot(L, P)
+''' % ('deterministic2_gap.pdf', 'deterministic2_gap_qq.pdf'))
+
 
 def produce_figs(seed=0, big=False):
     np.random.seed(seed)

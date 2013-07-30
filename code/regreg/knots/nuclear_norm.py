@@ -8,7 +8,7 @@ from regreg.knots import (find_C_X,
                           chi_pvalue,
                           Q_0)
 
-def nuclear_norm_knot(X, R, soln, 
+def nuclear_norm_knot(X, R, 
                       epsilon=([1.e-2] + [1.e-4]*3 + [1.e-5]*3 + 
                                [1.e-6]*50 + [1.e-8]*200), tol=1.e-10, 
                       method='admm',
@@ -124,12 +124,11 @@ def first_test(X, Y, nsim=10000,
                method='explicit',
                sigma=1):
     X = rr.astransform(X)
-    soln = np.zeros(X.input_shape)
+
     (L, Mplus, Mminus, _, _, 
      var, _, _, H) = nuclear_norm_knot(X, Y, 
-                                            soln,
-                                            method=method,
-                                            tol=1.e-12)
+                                       method=method,
+                                       tol=1.e-12)
     sd = np.sqrt(var) * sigma
 
     pval = Q_0(L/sd, Mplus/sd, Mminus/sd, H/sd, nsim=nsim)
