@@ -18,10 +18,10 @@ def simulate_null(X, groups, weights={}, orthonormal=False):
             g = groups == group
             X[:,g] = np.linalg.svd(X[:,g], full_matrices=False)[0]
 
-    sigma = 0.1
+    sigma = 1.
     n, p = X.shape
 
-    Z = np.random.standard_normal(n) * sigma
+    Z = np.random.exponential(1, size=(n,)) - 1.
 
     return GL.first_test(X, Z, groups, weights=weights, sigma=sigma)
 
@@ -34,7 +34,6 @@ def fig(X, fname, groups, nsim=10000, weights={}):
         if i % 1000 == 0:
             dname = os.path.splitext(fname)[0] + '.npy'
             np.save(dname, np.array(P))
-        print np.mean(P), np.std(P)
     P = np.array(P)
     make_fig(fname, P)
 
@@ -68,7 +67,7 @@ dev.off()
 def fig1(nsim=10000):
     X = np.arange(12).reshape((3,4)) + 0.1 * np.random.standard_normal((3,4))
     groups = np.array([0,0,1,1])
-    fig(X, 'small_group_lasso.pdf', groups, nsim=nsim, weights={0:0.1})
+    fig(X, 'small_group_lasso_expnoise.pdf', groups, nsim=nsim, weights={0:0.1})
 
 def fig2(nsim=10000):
     n, p = 100, 10000
@@ -76,7 +75,7 @@ def fig2(nsim=10000):
     X -= X.mean(0)
     X /= X.std(0)
     groups = np.array(range(1000)*10)
-    fig(X, 'fat_group_lasso.pdf', groups, nsim=nsim)
+    fig(X, 'fat_group_lasso_expnoise.pdf', groups, nsim=nsim)
 
 def fig3(nsim=10000):
     n, p = 10000, 100
@@ -84,7 +83,7 @@ def fig3(nsim=10000):
     X -= X.mean(0)
     X /= X.std(0)
     groups = np.array(range(10)*10)
-    fig(X, 'tall_group_lasso.pdf', groups, nsim=nsim)
+    fig(X, 'tall_group_lasso_expnoise.pdf', groups, nsim=nsim)
 
 def fig4(nsim=10000):
     n, p = 100, 100
@@ -92,7 +91,7 @@ def fig4(nsim=10000):
     X -= X.mean(0)
     X /= X.std(0)
     groups = np.array(range(10)*10)
-    fig(X, 'square_group_lasso.pdf', groups, nsim=nsim)
+    fig(X, 'square_group_lasso_expnoise.pdf', groups, nsim=nsim)
 
 def fig5(nsim=10000):
     IP = get_ipython()
@@ -105,7 +104,7 @@ X = diabetes$x
 ''')
     X = IP.user_ns['X']
     groups = [0,0,0,0,1,1,2,2,2,3]
-    fig(X, 'lars_diabetes_group.pdf', groups, nsim=nsim, weights={2:1,3:2,0:4})
+    fig(X, 'lars_diabetes_group_expnoise.pdf', groups, nsim=nsim, weights={2:1,3:2,0:4})
 
 def fig6(nsim=10000):
     IP = get_ipython()
@@ -118,7 +117,7 @@ X = diabetes$x
 ''')
     X = IP.user_ns['X']
     groups = range(X.shape[1])
-    fig(X, 'lars_diabetes_lasso_as_group.pdf', groups, nsim=nsim, 
+    fig(X, 'lars_diabetes_lasso_as_group_expnoise.pdf', groups, nsim=nsim, 
         weights=dict([(i, s) for i, s in enumerate(0.2 * np.random.sample(X.shape[1])+1)]))
 
 def fig7(nsim=10000):
@@ -128,7 +127,7 @@ def fig7(nsim=10000):
     X /= X.std(0)
     X[:,8:] = X[:,:2]
     groups = np.array([0]*8+[1]*2)
-    fig(X, 'nested_groups_big_first.pdf', groups, nsim=nsim, weights={0:0.1,1:3})
+    fig(X, 'nested_groups_big_first_expnoise.pdf', groups, nsim=nsim, weights={0:0.1,1:3})
 
 def fig8(nsim=10000):
     n, p = 100, 10
@@ -137,7 +136,7 @@ def fig8(nsim=10000):
     X /= X.std(0)
     X[:,8:] = X[:,:2]
     groups = np.array([0]*8+[1]*2)
-    fig(X, 'nested_groups_smaller_first.pdf', groups, nsim=nsim, weights={1:0.1,0:3})
+    fig(X, 'nested_groups_smaller_first_expnoise.pdf', groups, nsim=nsim, weights={1:0.1,0:3})
 
 def fig9(nsim=10000):
     n = 100
@@ -147,7 +146,7 @@ def fig9(nsim=10000):
     X -= X.mean(0)
     X /= X.std(0)
     groups = np.array([0]*4+[1]*2+[2]*4+[3]*2)
-    fig(X, 'two_nested_groups.pdf', groups, nsim=nsim)
+    fig(X, 'two_nested_groups_expnoise.pdf', groups, nsim=nsim)
 
 def fig10(nsim=10000):
     n = 100
@@ -161,73 +160,10 @@ def fig10(nsim=10000):
     X += np.random.standard_normal(n)[:,np.newaxis]
     X -= X.mean(0)
     X /= X.std(0)
-    fig(X, 'several_nested_groups.pdf', groups, nsim=nsim, weights=
+    fig(X, 'several_nested_groups_expnoise.pdf', groups, nsim=nsim, weights=
         {0:1.9,2:1.9,5:1.3})
 
 
-def fig11():
-    plt.clf()
-
-    P = []
-    for f in ['several_nested_groups.npy',
-              'small_group_lasso.npy',
-              #'fat_group_lasso.npy',
-              #'tall_group_lasso.npy',
-              'square_group_lasso.npy',
-              'lars_diabetes_group.npy',
-              'lars_diabetes_lasso_as_group.npy',
-              'nested_groups_big_first.npy',
-              'nested_groups_smaller_first.npy',
-              'two_nested_groups.npy',
-              'several_nested_groups.npy']:
-        a = np.load(f)
-        if a.ndim == 2:
-            P.append(a[:,0])
-        else:
-            P.append(a)
-    P = np.asarray(P).reshape(-1)
-    np.random.shuffle(P)
-    P = P[:20000]
-    ecdf = sm.distributions.ECDF(P)
-    x = np.linspace(min(P), max(P), P.shape[0])
-    y = ecdf(x)
-    plt.step(x, y, linewidth=4, color='red')
-
-    plt.plot([0,1],[0,1], '--', linewidth=2, color='black')
-    plt.savefig('group_lasso_pval_ecdf.pdf')
-
-def fig12():
-    plt.clf()
-
-    P = np.load('small_group_lasso.npy')[:,1]
-    ecdf = sm.distributions.ECDF(P)
-    x = np.linspace(min(P), max(P), P.shape[0])
-    y = ecdf(x)
-    plt.step(x, y, label=r'$3\times 4$', linewidth=2)
-
-    P = np.load('lars_diabetes_group.npy')[:,1]
-    ecdf = sm.distributions.ECDF(P)
-    x = np.linspace(min(P), max(P), P.shape[0])
-    y = ecdf(x)
-    plt.step(x, y, label=r'diabetes', linewidth=2)
-
-    P = np.load('several_nested_groups.npy')[:,1]
-    ecdf = sm.distributions.ECDF(P)
-    x = np.linspace(min(P), max(P), P.shape[0])
-    y = ecdf(x)
-    plt.step(x, y, label=r'nested groups', linewidth=2)
-
-    plt.plot([0,1],[0,1], '--', linewidth=1, color='black')
-    plt.legend(loc='upper left')
-    plt.savefig('group_lasso_exp_ecdf.pdf')
-
-def fig13(nsim=10000):
-    n, p = 20, 10 
-    X = np.random.standard_normal((n,p)) + np.random.standard_normal(n)[:,np.newaxis]
-    X -= X.mean(0)
-    X /= X.std(0)
-    groups = [0]*p
-    fig(X, 'single_group_lasso.pdf', groups, nsim=nsim)
 
 
 def produce_figs(seed=0):

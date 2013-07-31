@@ -2,6 +2,7 @@ import numpy as np, os
 from scipy.stats import chi
 
 import regreg.api as rr
+from regreg.affine import todense
 from regreg.knots import (find_C_X, linear_fractional_admm,
                           linear_fractional_tfocs,
                           linear_fractional_admm,
@@ -86,7 +87,10 @@ def glasso_knot(X, R, groups,
                 tf = trignometric_form(a[group], b[group], weight)
                 Vplus.append(tf[0])
                 Vminus.append(tf[1])
-        Mplus, next_soln, Mminus = -np.nanmax(Vplus), None, np.nanmin(Vminus)
+        if Vplus:
+            Mplus, next_soln, Mminus = -np.nanmax(Vplus), None, np.nanmin(Vminus)
+        else:
+            Mplus, next_soln, Mminus = 0, None, np.inf
 
     else:
         raise ValueError('method must be one of ["nesta", "tfocs", "admm", "explicit"]')

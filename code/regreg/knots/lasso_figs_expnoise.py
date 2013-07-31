@@ -8,10 +8,10 @@ import statsmodels.api as sm # recommended import according to the docs
 import matplotlib.pyplot as plt
 
 def simulate_null(X):
-    sigma = np.sqrt(2)
+    sigma = 1.
     n, p = X.shape
 
-    Z = np.random.poisson(2, size=(n,)) - 2.
+    Z = np.random.exponential(1, size=(n,)) - 1.
     return K.first_test(X.astype(np.float), Z, sigma=sigma)
 
 def fig(X, fname, nsim=10000):
@@ -53,20 +53,20 @@ def fig2(nsim=10000):
     X = np.random.standard_normal((n,p)) + np.random.standard_normal(n)[:,np.newaxis]
     X -= X.mean(0)
     X /= X.std(0)
-    fig(X, 'fat_lasso_poisson.pdf', nsim=nsim)
+    fig(X, 'fat_lasso_expnoise.pdf', nsim=nsim)
 
 def fig3(nsim=10000):
     n, p = 10000, 100
     X = np.random.standard_normal((n,p)) + np.random.standard_normal(n)[:,np.newaxis]
     X -= X.mean(0)
     X /= X.std(0)
-    fig(X, 'tall_lasso_poisson.pdf', nsim=nsim)
+    fig(X, 'tall_lasso_expnoise.pdf', nsim=nsim)
 
 def fig4(nsim=10000):
     n = 500
     D = fused_lasso.trend_filter(n)
     X = ra.todense(D)
-    fig(X, 'fused_lasso_poisson.pdf', nsim=nsim)
+    fig(X, 'fused_lasso_expnoise.pdf', nsim=nsim)
 
 def fig5(nsim=10000):
     IP = get_ipython()
@@ -78,7 +78,7 @@ data(diabetes)
 X = diabetes$x
 ''')
     X = IP.user_ns['X']
-    fig(X, 'lars_diabetes_poisson.pdf', nsim=nsim)
+    fig(X, 'lars_diabetes_expnoise.pdf', nsim=nsim)
 
 def produce_figs(seed=0):
     np.random.seed(seed)
