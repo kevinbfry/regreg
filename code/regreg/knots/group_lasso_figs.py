@@ -222,12 +222,44 @@ def fig12():
     plt.savefig('group_lasso_exp_ecdf.pdf')
 
 def fig13(nsim=10000):
-    n, p = 20, 10 
+    n, p = 20, 300
     X = np.random.standard_normal((n,p)) + np.random.standard_normal(n)[:,np.newaxis]
     X -= X.mean(0)
     X /= X.std(0)
+
     groups = [0]*p
-    fig(X, 'single_group_lasso.pdf', groups, nsim=nsim)
+
+    V = []
+    P = []
+    for i in range(nsim):
+        sigma = 0.1
+        n, p = X.shape
+
+        Z = np.random.standard_normal(n) * sigma
+
+        (L, Mplus, Mminus, _, _, 
+         var, _, _, _, k, w) = GL.glasso_knot(X, Z, groups, 
+                                              method='explicit',
+                                              weights={})
+        p = GL.pvalue(L, Mplus, Mminus, np.sqrt(var)*sigma, min(p, n-1), 
+                      method='sf')
+        P.append(p)
+        V.append(var*sigma**2)
+        if i % 100 == 0:
+            print np.mean(P), np.std(P), np.mean(V)
+
+    fname = 'single_group_lasso.pdf'
+    P = np.array(P)
+    IP.magic('R -i P')
+    dname = os.path.splitext(fname)[0] + '.npy'
+    np.save(dname, P)
+
+    IP.run_cell_magic(u'R', u'', '''
+pdf('%s')
+qqplot(P, runif(%d), xlab='P-value', ylab='Uniform', pch=23, cex=0.5, bg='red')
+abline(0,1, lwd=3, lty=2)
+dev.off()
+''' % (fname, P.shape[0]))
 
 
 def produce_figs(seed=0):

@@ -12,7 +12,7 @@ from lasso import signed_basis_vector
 def glasso_knot(X, R, groups, 
                 epsilon=([1.e-2] + [1.e-4]*3 + [1.e-5]*3 + 
                          [1.e-6]*50 + [1.e-8]*200)
-                , tol=1.e-7, method='admm', weights=None,
+                , tol=1.e-7, method='admm', weights={},
                 min_iters=10):
     """
     Find an approximate LASSO knot
@@ -24,6 +24,7 @@ def glasso_knot(X, R, groups,
     X = rr.astransform(X)
     U = X.adjoint_map(R).copy()
     terms = dual.terms(U)
+
     imax = np.argmax(terms)
     L = terms[imax]
     gmax = dual.group_labels[imax]
