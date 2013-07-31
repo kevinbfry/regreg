@@ -22,7 +22,7 @@ def fig(data, fname, nsim=10000, output_cycle=5000):
         P.append(simulate_null(data))
         print np.mean(P), np.std(P), len(P)
 
-        if i % output_cycle == 0:
+        if i % output_cycle == 0 and i > 0:
             dname = os.path.splitext(fname)[0] + '.npy'
             np.save(dname, np.array(P))
 
@@ -168,6 +168,9 @@ def fig10(nsim=10000):
         if i % 100 == 0:
             print 'completed %d' % i
 
+    Q = np.array([L,P])
+    np.save('deterministic2_gap.npy', Q)
+
     L = np.array(L)**2
     L -= L.mean()
     L /= L.std()
@@ -186,7 +189,13 @@ lines(density(P), lwd=1,lty=2)
 dev.off()
 pdf('%s')
 qqplot(L, P)
-''' % ('deterministic2_gap.pdf', 'deterministic2_gap_qq.pdf'))
+dev.off()
+pdf('%s')
+mL = L - min(L)
+mP = P - min(P)
+qqplot(exp(-mL), runif(length(mL)))
+dev.off()
+''' % ('deterministic2_gap.pdf', 'deterministic2_gap_qq.pdf', 'deterministic2_gap_qq_exp.pdf'))
 
 
 def produce_figs(seed=0, big=False):

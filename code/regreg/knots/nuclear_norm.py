@@ -35,16 +35,23 @@ def nuclear_norm_knot(X, R,
     neg_hessian = np.zeros((n+p-2,n+p-2))
     zero_vector = np.zeros((n,p))
 
-    for i in range(n-1):
-        for j in range(p-1):
-            G[i,n-1+j] = (np.multiply.outer(U[:,i+1], V[j+1]) * C_X).sum() 
-            G[n-1+j,i] = G[i,n-1+j]
-            neg_hessian[i,n-1+j] = (np.multiply.outer(U[:,i+1], V[j+1]) * Z).sum() 
-            neg_hessian[n-1+j,i] = neg_hessian[i,n-1+j]
+#     for i in range(n-1):
+#         for j in range(p-1):
+#             G[i,n-1+j] = (U[:,i+1] * np.dot(C_X, V[j+1])).sum() 
+#             G[n-1+j,i] = G[i,n-1+j]
+#             neg_hessian[i,n-1+j] = (U[:,i+1] * np.dot(Z, V[j+1])).sum() 
+#             neg_hessian[n-1+j,i] = neg_hessian[i,n-1+j]
 
-    for i in range(n+p-2):
-        G[i,i] = (np.multiply.outer(U[:,0], V[0]) * C_X).sum() 
-        neg_hessian[i,i] = (np.multiply.outer(U[:,0], V[0]) * Z).sum() 
+    G[:(n-1),(n-1):] = np.dot(U[:,1:].T, np.dot(C_X, V[1:].T))
+    G[(n-1):,:(n-1)] = G[:(n-1),(n-1):].T
+    neg_hessian[:(n-1),(n-1):] = np.dot(U[:,1:].T, np.dot(Z, V[1:].T))
+    neg_hessian[(n-1):,:(n-1)] = neg_hessian[:(n-1),(n-1):].T
+
+    G += np.identity(n+p-2) * (U[:,0] * np.dot(C_X, V[0])).sum() 
+    neg_hessian += np.identity(n+p-2) * L
+#     for i in range(n+p-2):
+#         G[i,i] = (U[:,0] * np.dot(C_X, V[0])).sum() 
+#         neg_hessian[i,i] = L
 
     H = neg_hessian - G*L
     evalsG, evecsG = np.linalg.eigh(G)

@@ -315,6 +315,16 @@ def chi_pvalue(L, Mplus, Mminus, sd, k, method='MC', nsim=1000):
         pval = (chi.sf(Mminus / sd, k) - chi.sf(L / sd, k)) / (chi.sf(Mminus / sd, k) - chi.sf(Mplus / sd, k))
     elif method == 'MC':
         pval = Q_0(L / sd, Mplus / sd, Mminus / sd, H, nsim=nsim)
+    elif method == 'approx':
+        if Mminus < np.inf:
+            stop
+            num = np.log((Mminus / sd)**(k-2) * np.exp(-((Mminus/sd)**2-(L/sd)**2)/2.) - 
+                         (L/sd)**(k-2))
+            den = np.log((Mminus / sd)**(k-2) * np.exp(-((Mminus/sd)**2-(L/sd)**2)/2.) - 
+                         (Mplus/sd)**(k-2) * np.exp(-((Mplus/sd)**2-(L/sd)**2)/2.))
+            pval = np.exp(num-den)
+        else:
+            pval = (L/Mplus)**(k-2) * np.exp(-((L/sd)**2-(Mplus/sd)**2)/2)
     else:
         raise ValueError('method should be one of ["cdf", "sf", "MC"]')
     if pval == 1:
