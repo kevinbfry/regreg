@@ -15,6 +15,8 @@ def simulate_null(X):
     return K.first_test(X, Z, sigma=sigma)
 
 def fig(X, fname, nsim=10000):
+    for i in range(X.shape[1]):
+        X[:,i] /= np.linalg.norm(X[:,i])
     IP = get_ipython()
     P = []
     for i in range(nsim):
@@ -49,28 +51,28 @@ dev.off()
 ''' % (fname.replace('.pdf', '_exp.pdf'), nsim))
 
 def fig1(nsim=10000):
-    X = np.arange(6).reshape((3,2))
-    fig(X, 'small_lasso.pdf', nsim=nsim)
+    X = np.arange(6).reshape((3,2)) * 1.
+    fig(X, 'small_lasso_scaled.pdf', nsim=nsim)
 
 def fig2(nsim=10000):
     n, p = 100, 10000
     X = np.random.standard_normal((n,p)) + np.random.standard_normal(n)[:,np.newaxis]
     X -= X.mean(0)
     X /= X.std(0)
-    fig(X, 'fat_lasso.pdf', nsim=nsim)
+    fig(X, 'fat_lasso_scaled.pdf', nsim=nsim)
 
 def fig3(nsim=10000):
     n, p = 10000, 100
     X = np.random.standard_normal((n,p)) + np.random.standard_normal(n)[:,np.newaxis]
     X -= X.mean(0)
     X /= X.std(0)
-    fig(X, 'tall_lasso.pdf', nsim=nsim)
+    fig(X, 'tall_lasso_scaled.pdf', nsim=nsim)
 
 def fig4(nsim=10000):
     n = 500
     D = fused_lasso.trend_filter(n)
     X = np.linalg.pinv(ra.todense(D))
-    fig(X, 'fused_lasso.pdf', nsim=nsim)
+    fig(X, 'fused_lasso_scaled.pdf', nsim=nsim)
 
 def fig5(nsim=10000):
     IP = get_ipython()
@@ -82,43 +84,45 @@ data(diabetes)
 X = diabetes$x
 ''')
     X = IP.user_ns['X']
-    fig(X, 'lars_diabetes.pdf', nsim=nsim)
+    fig(X, 'lars_diabetes_scaled.pdf', nsim=nsim)
 
 def fig6():
     plt.clf()
 
-    P = np.load('small_lasso.npy')[:,1]
+    P = np.load('small_lasso_scaled.npy')[:,1]
     ecdf = sm.distributions.ECDF(P)
     x = np.linspace(min(P), max(P), P.shape[0])
     y = ecdf(x)
-    plt.step(x, y, label=r'$3\times 2$', linewidth=2)
+    plt.step(x, y, label=r'$3 \, \times \, 2$ setup', linewidth=2)
 
-    P = np.load('fused_lasso.npy')[:,1]
+    P = np.load('fused_lasso_scaled.npy')[:,1]
     ecdf = sm.distributions.ECDF(P)
     x = np.linspace(min(P), max(P), P.shape[0])
     y = ecdf(x)
-    plt.step(x, y, label=r'fused LASSO', linewidth=2)
+    plt.step(x, y, label=r'1d fused lasso setup', linewidth=2)
 
-    P = np.load('lars_diabetes.npy')[:,1]
+    P = np.load('lars_diabetes_scaled.npy')[:,1]
     ecdf = sm.distributions.ECDF(P)
     x = np.linspace(min(P), max(P), P.shape[0])
     y = ecdf(x)
-    plt.step(x, y, label=r'diabetes', linewidth=2)
+    plt.step(x, y, label=r'diabetes data setup', linewidth=2)
 
+    plt.gca().set_ylabel('ECDF($p$)')
+    plt.gca().set_xlabel('$p$-value')
     plt.plot([0,1],[0,1], '--', linewidth=1, color='black')
     plt.legend(loc='upper left')
-    plt.savefig('lasso_exp_ecdf.pdf')
+    plt.savefig('lasso_exp_ecdf_scaled.pdf')
 
 
 def fig7():
     plt.clf()
 
     P = []
-    for f in ['small_lasso.npy',
-              'fused_lasso.npy',
-              'fat_lasso.npy',
-              'tall_lasso.npy',
-              'lars_diabetes.npy']:
+    for f in ['small_lasso_scaled.npy',
+              'fused_lasso_scaled.npy',
+              'fat_lasso_scaled.npy',
+              'tall_lasso_scaled.npy',
+              'lars_diabetes_scaled.npy']:
         P.append(np.load(f)[:,0])
     P = np.asarray(P).reshape(-1)
     np.random.shuffle(P)
@@ -129,7 +133,10 @@ def fig7():
     plt.step(x, y, linewidth=4, color='red')
 
     plt.plot([0,1],[0,1], '--', linewidth=2, color='black')
-    plt.savefig('lasso_pval_ecdf.pdf')
+    plt.gca().set_ylabel('ECDF($p$)')
+    plt.gca().set_xlabel('$p$-value')
+    plt.savefig('lasso_pval_ecdf_scaled.pdf')
+
 
 
 
@@ -139,4 +146,4 @@ def produce_figs(seed=0):
     IP = get_ipython()
     IP.magic('R set.seed(%d)' % seed)
 
-    [f() for f in [fig1, fig2, fig3, fig4, fig5]]
+    [f() for f in [fig1, fig2, fig3, fig4, fig5, fig6, fig7]]

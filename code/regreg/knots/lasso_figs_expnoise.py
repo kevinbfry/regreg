@@ -65,7 +65,7 @@ def fig3(nsim=10000):
 def fig4(nsim=10000):
     n = 500
     D = fused_lasso.trend_filter(n)
-    X = ra.todense(D)
+    X = np.linalg.pinv(ra.todense(D))
     fig(X, 'fused_lasso_expnoise.pdf', nsim=nsim)
 
 def fig5(nsim=10000):
