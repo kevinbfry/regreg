@@ -12,6 +12,7 @@ import statsmodels.api as sm # recommended import according to the docs
 import matplotlib.pyplot as plt
 
 df = 5
+sigma = (np.random.standard_normal(10000) / np.sqrt(np.random.chisquare(df, size=(10000,)) / df)).std()
 
 def simulate_null(X, groups, weights={}, orthonormal=False):
 
@@ -22,7 +23,6 @@ def simulate_null(X, groups, weights={}, orthonormal=False):
 
     n = X.shape[0]
     Z = np.random.standard_normal(n) / np.sqrt(np.random.chisquare(df, size=(n,)) / df)
-    sigma = (np.random.standard_normal(10000) / np.sqrt(np.random.chisquare(df, size=(10000,)) / df)).std()
 
     return GL.first_test(X, Z, groups, weights=weights, sigma=sigma)
 

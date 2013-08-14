@@ -3,6 +3,7 @@ import regreg.knots.nuclear_norm as NN
 import numpy as np, random, os
 
 df = 5
+sigma = (np.random.standard_normal(10000) / np.sqrt(np.random.chisquare(df, size=(10000,)) / df)).std()
 
 def simulate_null(data):
     if type(data) == type(()): # it is a (proportion, shape) tuple
@@ -13,14 +14,18 @@ def simulate_null(data):
 
 
     n = observed.sum()
-    Y = np.random.standard_normal(n) / np.sqrt(np.random.chisquare(df, size=(n,)) / df)
-    sigma = (np.random.standard_normal(10000) / np.sqrt(np.random.chisquare(df, size=(10000,)) / df)).std()
+
+    Z1 = np.random.standard_normal(n) / np.sqrt(np.random.chisquare(df, size=(n,)) / df)
+    Z2 = (np.random.exponential(1, size=(n,)) - 1.) * 3
+    Z = Z1+Z2
+
+    Y = Z
 
     X = rr.selector(observed, observed.shape)
     nsim = 10000
-    return NN.first_test(X, Y, sigma=sigma, nsim=nsim)
+    return NN.first_test(X, Y, sigma=np.sqrt(sigma**2+9), nsim=nsim)
 
-def fig(data, fname, nsim=10000, output_cycle=5000):
+def fig(data, fname, nsim=10000, output_cycle=500):
     IP = get_ipython()
     P = []
     for i in range(nsim):
@@ -53,19 +58,19 @@ dev.off()
 
 def fig1(nsim=10000):
     observed = np.ones((3,4), np.bool)
-    fig(observed, 'small_matrixcomp_full_t.pdf', nsim=nsim,
+    fig(observed, 'small_matrixcomp_full_texp.pdf', nsim=nsim,
         output_cycle=nsim)
 
 def fig2(nsim=10000):
     shape = (10,5)
     observed = np.random.binomial(1,0.5,shape).astype(np.bool)
-    fig(observed, 'small_matrixcomp_t.pdf', nsim=nsim,
+    fig(observed, 'small_matrixcomp_texp.pdf', nsim=nsim,
         output_cycle=1000)
 
 def fig3(nsim=10000):
     shape = (100,30)
     observed = np.random.binomial(1,0.8,shape).astype(np.bool)
-    fig(observed, 'medium_matrixcomp_t.pdf', nsim=nsim,
+    fig(observed, 'medium_matrixcomp_texp.pdf', nsim=nsim,
         output_cycle=1000)
 
 def fig4(nsim=10000):
@@ -74,7 +79,7 @@ def fig4(nsim=10000):
     for i in range(5):
         observed[i,i] = 0
         observed[5+i,i] = 0
-    fig(observed, 'deterministic1_matrixcomp_t.pdf', nsim=nsim,
+    fig(observed, 'deterministic1_matrixcomp_texp.pdf', nsim=nsim,
         output_cycle=5000)
 
 def fig5(nsim=10000):
@@ -84,24 +89,24 @@ def fig5(nsim=10000):
         observed[i,i] = 0
         observed[10+i,i] = 0
     observed[0,:-1] = 0
-    fig(observed, 'deterministic2_matrixcomp_t.pdf', nsim=nsim,
+    fig(observed, 'deterministic2_matrixcomp_texp.pdf', nsim=nsim,
         output_cycle=5000)
 
 def fig6(nsim=10000):
     shape = (10,5)
-    fig((0.7, shape), 'small_matrixcomp_random_t.pdf', nsim=nsim,
+    fig((0.7, shape), 'small_matrixcomp_random_texp.pdf', nsim=nsim,
         output_cycle=5000)
 
 def fig7(nsim=10000):
     shape = (200,100)
     observed = np.random.binomial(1,0.1,shape).astype(np.bool)
-    fig(observed, 'larger_matrixcomp_t.pdf', nsim=nsim,
+    fig(observed, 'larger_matrixcomp_texp.pdf', nsim=nsim,
         output_cycle=100)
 
 def fig8(nsim=10000):
     shape = (200,100)
     observed = np.random.binomial(1,0.1,shape).astype(np.bool)
-    fig((0.1, shape), 'larger_matrixcomp_random_t.pdf', nsim=nsim,
+    fig((0.1, shape), 'larger_matrixcomp_random_texp.pdf', nsim=nsim,
         output_cycle=100)
 
 
