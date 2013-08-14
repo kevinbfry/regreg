@@ -244,9 +244,9 @@ def fig13(nsim=10000):
         p = GL.pvalue(L, Mplus, Mminus, np.sqrt(var)*sigma, min(p, n-1), 
                       method='sf')
         P.append(p)
-        V.append(var*sigma**2)
+        V.append(var)
         if i % 100 == 0:
-            print np.mean(P), np.std(P), np.mean(V)
+            print np.mean(P), np.std(P), np.mean(V), np.std(V)
 
     fname = 'single_group_lasso.pdf'
     P = np.array(P)

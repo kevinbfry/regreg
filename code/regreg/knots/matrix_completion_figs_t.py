@@ -53,19 +53,19 @@ dev.off()
 
 def fig1(nsim=10000):
     observed = np.ones((3,4), np.bool)
-    fig(observed, 'small_matrixcomp_full_expnoise.pdf', nsim=nsim,
+    fig(observed, 'small_matrixcomp_full_t.pdf', nsim=nsim,
         output_cycle=nsim)
 
 def fig2(nsim=10000):
     shape = (10,5)
     observed = np.random.binomial(1,0.5,shape).astype(np.bool)
-    fig(observed, 'small_matrixcomp_expnoise.pdf', nsim=nsim,
+    fig(observed, 'small_matrixcomp_t.pdf', nsim=nsim,
         output_cycle=1000)
 
 def fig3(nsim=10000):
     shape = (100,30)
     observed = np.random.binomial(1,0.8,shape).astype(np.bool)
-    fig(observed, 'medium_matrixcomp_expnoise.pdf', nsim=nsim,
+    fig(observed, 'medium_matrixcomp_t.pdf', nsim=nsim,
         output_cycle=1000)
 
 def fig4(nsim=10000):
@@ -74,7 +74,7 @@ def fig4(nsim=10000):
     for i in range(5):
         observed[i,i] = 0
         observed[5+i,i] = 0
-    fig(observed, 'deterministic1_matrixcomp_expnoise.pdf', nsim=nsim,
+    fig(observed, 'deterministic1_matrixcomp_t.pdf', nsim=nsim,
         output_cycle=5000)
 
 def fig5(nsim=10000):
@@ -84,24 +84,24 @@ def fig5(nsim=10000):
         observed[i,i] = 0
         observed[10+i,i] = 0
     observed[0,:-1] = 0
-    fig(observed, 'deterministic2_matrixcomp_expnoise.pdf', nsim=nsim,
+    fig(observed, 'deterministic2_matrixcomp_t.pdf', nsim=nsim,
         output_cycle=5000)
 
 def fig6(nsim=10000):
     shape = (10,5)
-    fig((0.7, shape), 'small_matrixcomp_random_expnoise.pdf', nsim=nsim,
+    fig((0.7, shape), 'small_matrixcomp_random_t.pdf', nsim=nsim,
         output_cycle=5000)
 
 def fig7(nsim=10000):
     shape = (200,100)
     observed = np.random.binomial(1,0.1,shape).astype(np.bool)
-    fig(observed, 'larger_matrixcomp_expnoise.pdf', nsim=nsim,
+    fig(observed, 'larger_matrixcomp_t.pdf', nsim=nsim,
         output_cycle=100)
 
 def fig8(nsim=10000):
     shape = (200,100)
     observed = np.random.binomial(1,0.1,shape).astype(np.bool)
-    fig((0.1, shape), 'larger_matrixcomp_random_expnoise.pdf', nsim=nsim,
+    fig((0.1, shape), 'larger_matrixcomp_random_t.pdf', nsim=nsim,
         output_cycle=100)
 
 
