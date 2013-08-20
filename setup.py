@@ -69,7 +69,8 @@ EXTS = []
 for modulename, other_sources in (
     ('regreg.atoms.projl1_cython', []),
     ('regreg.atoms.mixed_lasso_cython', []),
-    ('regreg.atoms.piecewise_linear', [])):
+    ('regreg.atoms.piecewise_linear', []),
+    ('regreg.knots.grouplasso_knot', [])):
     pyx_src = pjoin(*modulename.split('.')) + '.pyx'
     EXTS.append(Extension(modulename,[pyx_src] + other_sources,
                           include_dirs = [np.get_include(),

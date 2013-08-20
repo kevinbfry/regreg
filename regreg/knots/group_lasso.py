@@ -8,6 +8,7 @@ from regreg.knots import (find_C_X, linear_fractional_admm,
                           linear_fractional_admm,
                           chi_pvalue)
 from lasso import signed_basis_vector
+from .grouplasso_knot import group_lasso_knot as glasso_knot_cython
 
 def glasso_knot(X, R, groups, 
                 epsilon=([1.e-2] + [1.e-4]*3 + [1.e-5]*3 + 
@@ -311,10 +312,17 @@ def exp_pvalue(L, Mplus, Mminus, sd):
 def first_test(X, Y, groups, weights={}, nsim=50000,
                method='MC',
                sigma=1):
-    (L, Mplus, Mminus, _, _, 
-     var, _, _, _, k, w) = glasso_knot(X, Y, groups, 
-                                       method='explicit',
-                                       weights=weights)
+    primal = rr.group_lasso(groups, weights=weights, lagrange=1.)
+
+    L, Mplus, Mminus, var, k, w = glasso_knot_cython(X, Y, 
+                                                     primal._group_array,
+                                                     primal._weight_array)
+
+#     (L, Mplus, Mminus, _, _, 
+#      var, _, _, _, k, w) = glasso_knot(X, Y, groups, 
+#                                        method='explicit',
+#                                        weights=weights)
+
     sd = np.sqrt(var) * sigma
     p = pvalue(L, Mplus, Mminus, sd, k, method=method, nsim=nsim)
     return p, exp_pvalue(L, Mplus, Mminus, sd)
