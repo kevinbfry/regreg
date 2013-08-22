@@ -37,21 +37,20 @@ def group_lasso_knot(cnp.ndarray[DTYPE_float_t, ndim=2] X,
     kmax = which.sum()
     
     Uwhich = U[which]
-    soln = np.zeros_like(Uwhich)
     soln = (Uwhich / np.linalg.norm(Uwhich)) / wmax
     
     Xmax = np.array(X)[:,which]
     Xeta = np.dot(Xmax, soln)
     
     Xmax -= np.outer(Xeta, soln) / np.linalg.norm(soln)**2
-    if soln.shape[0] > 1:
+    if kmax > 1:
         Wmax = Xmax[:,:-1]
-        XetaP = np.dot(Wmax, np.dot(np.linalg.pinv(Wmax), Xeta))
+        XetaP = np.dot(Wmax, np.linalg.lstsq(Wmax, Xeta)[0])
         Xeta -= XetaP
 
     conditional_variance = np.linalg.norm(Xeta)**2
     
-    Xeta /= np.linalg.norm(Xeta)**2
+    Xeta /= conditional_variance
     
     C_X = np.dot(X.T, Xeta)
     
@@ -68,9 +67,9 @@ def group_lasso_knot(cnp.ndarray[DTYPE_float_t, ndim=2] X,
             Vplus.append(tf[0])
             Vminus.append(tf[1])
     if Vplus:
-        Mplus, next_soln, Mminus = -np.nanmax(Vplus), None, np.nanmin(Vminus)
+        Mplus, Mminus = -np.nanmax(Vplus), np.nanmin(Vminus)
     else:
-        Mplus, next_soln, Mminus = 0, None, np.inf
+        Mplus, Mminus = 0, np.inf
     return L, -Mplus, Mminus, conditional_variance, kmax, wmax
 
 def trignometric_form(num, den, weight, tol=1.e-6):

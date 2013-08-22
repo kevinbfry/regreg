@@ -8,7 +8,7 @@ from regreg.knots import (find_C_X, linear_fractional_admm,
                           linear_fractional_admm,
                           chi_pvalue)
 from lasso import signed_basis_vector
-from .grouplasso_knot import group_lasso_knot as glasso_knot_cython
+from .group_lasso_cython import group_lasso_knot as glasso_knot_cython
 
 def glasso_knot(X, R, groups, 
                 epsilon=([1.e-2] + [1.e-4]*3 + [1.e-5]*3 + 
