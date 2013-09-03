@@ -145,5 +145,27 @@ def first_test(X, Y, nsim=10000,
 
     return pval
 
+def exp_pvalue(L, Mplus, Mminus, sd):
+    '''
+    exponential approximation
+    '''
+    return np.exp(-L*(L-Mplus)/sd**2)
+
+
+
+def first_test_exp(X, Y, nsim=10000,
+               method='explicit',
+               sigma=1):
+    X = rr.astransform(X)
+
+    (L, Mplus, Mminus, _, _, 
+     var, _, _, H) = nuclear_norm_knot(X, Y, 
+                                       method=method,
+                                       tol=1.e-12)
+    sd = np.sqrt(var) * sigma
+
+    return exp_pvalue(L, Mplus, Mminus, sd)
+
+
 
 
