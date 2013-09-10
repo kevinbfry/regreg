@@ -289,14 +289,21 @@ def trignometric_form(num, den, weight, tol=1.e-6):
     theta = np.arccos(Ctheta)
 
     Sphi = np.linalg.norm(b) * Stheta / w
-    phi1 = np.arcsin(Sphi)
-    phi2 = np.pi - phi1
+    
+    if np.fabs(Sphi) <= 1: 
+        phi1 = np.arcsin(Sphi)
+        phi2 = np.pi - phi1
 
+    else:
+        # the critical point is a point where the gradient doesn't exist
+        #
+        theta_minus_phi1 = np.arccos(w / np.linalg.norm(b))
+        phi1 = theta - theta_minus_phi1
+        phi2 = np.pi - phi1
+        
     V1 = np.linalg.norm(a) * np.cos(phi1) / (w - np.linalg.norm(b) * np.cos(theta-phi1))
     V2 = np.linalg.norm(a) * np.cos(phi2) / (w - np.linalg.norm(b) * np.cos(theta-phi2))
 
-    if np.isnan(V1) or np.isnan(V2):
-        stop
     if np.linalg.norm(b) < w:
         return max([V1,V2]), np.inf
     else:
