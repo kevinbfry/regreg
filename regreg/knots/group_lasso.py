@@ -305,10 +305,6 @@ def trignometric_form(num, den, weight, tol=1.e-6):
     else:
         # the critical point is a point where the gradient doesn't exist
         #
-        theta_minus_phi1 = np.arccos(w / np.linalg.norm(b))
-        phi1 = theta - theta_minus_phi1
-        phi2 = np.pi - phi1
-        
         return np.inf, -np.inf
 
 def exp_pvalue(L, Mplus, Mminus, sd):

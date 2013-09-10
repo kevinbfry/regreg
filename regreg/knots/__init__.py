@@ -317,7 +317,6 @@ def chi_pvalue(L, Mplus, Mminus, sd, k, method='MC', nsim=1000):
         pval = Q_0(L / sd, Mplus / sd, Mminus / sd, H, nsim=nsim)
     elif method == 'approx':
         if Mminus < np.inf:
-            stop
             num = np.log((Mminus / sd)**(k-2) * np.exp(-((Mminus/sd)**2-(L/sd)**2)/2.) - 
                          (L/sd)**(k-2))
             den = np.log((Mminus / sd)**(k-2) * np.exp(-((Mminus/sd)**2-(L/sd)**2)/2.) - 
