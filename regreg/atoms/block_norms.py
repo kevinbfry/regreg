@@ -653,18 +653,18 @@ class l1_linf(l1_l1):
                            offset=offset,
                            quadratic=quadratic,
                            initial=initial)
-
-    @doc_template_user
-    def lagrange_prox(self, arg, lipschitz=1, lagrange=None):
-        arg = arg.reshape(self.shape)
-        lagrange = seminorms.seminorm.lagrange_prox(self, arg, lipschitz, lagrange)
-        norm = np.fabs(arg)
-        return (np.maximum(norm - lagrange / lipschitz, 0) * np.sign(arg)).reshape(self.shape)
+        if lagrange is not None:
+            self._linf_atom = seminorms.supnorm(shape[1],
+                                                lagrange=lagrange)
+        else:
+            self._linf_atom = seminorms.supnorm(shape[1],
+                                                bound=bound)
+        self._buffer = np.zeros(self.shape)
 
     @doc_template_user
     def constraint(self, arg):
         arg = arg.reshape(self.shape)
-        norm_sum = np.fabs(arg).sum()
+        norm_sum = np.fabs(arg).max(1).sum()
         if norm_sum <= self.bound * (1 + self.tol):
             return 0
         return np.inf
@@ -678,14 +678,26 @@ class l1_linf(l1_l1):
         return lagrange * norm_sum
 
     @doc_template_user
+    def lagrange_prox(self, arg, lipschitz=1, lagrange=None):
+        arg = arg.reshape(self.shape)
+        lagrange = seminorms.seminorm.lagrange_prox(self, arg, lipschitz, lagrange)
+        return np.array([self._linf_atom.lagrange_prox(row, 
+                                                       lipschitz=lipschitz,
+                                                       lagrange=lagrange)
+                         for row in arg])
+
+    @doc_template_user
     def bound_prox(self, arg, bound=None):
+        arg = arg.reshape(self.shape)
         bound = seminorms.seminorm.bound_prox(self, arg, bound)
-        arg = np.asarray(arg, np.float).reshape(-1)
-        absarg = np.fabs(arg)
-        cut = find_solution_piecewise_linear_c(bound, 0, absarg)
-        if cut < np.inf:
-            value = np.sign(arg) * (absarg - cut) * (absarg > cut)
-        return value.reshape(self.shape)
+        row_max = np.fabs(arg).max(1)
+        cut = find_solution_piecewise_linear_c(bound, 0, row_max)
+        result = np.zeros_like(arg)
+        for i in range(result.shape[0]):
+            if row_max[i] > cut:
+                result[i] = self._linf_atom.bound_prox(arg[i], 
+                                                       bound=row_max[i]-cut)
+        return result
 
     @doc_template_user
     def proximal(self, quadratic, prox_control=None):
@@ -720,7 +732,7 @@ class l1_linf(l1_l1):
         return l1_l2.get_conjugate(self)
 
 @objective_doc_templater()
-class linf_l1(l1_linf):
+class linf_l1(linf_l2):
 
     objective_template = r"""\|%(var)s\|_{\infty,1}"""
     objective_vars = l1_l2.objective_vars.copy()
@@ -734,26 +746,20 @@ class linf_l1(l1_linf):
                  quadratic=None,
                  initial=None):
 
-        block_sum.__init__(self, seminorms.supnorm,
+        block_max.__init__(self, seminorms.l1norm,
                            shape,
                            lagrange=lagrange,
                            bound=bound,
                            offset=offset,
                            quadratic=quadratic,
                            initial=initial)
-
-    @doc_template_user
-    def lagrange_prox(self, arg, lipschitz=1, lagrange=None):
-        arg = arg.reshape(self.shape)
-        lagrange = seminorms.seminorm.lagrange_prox(self, arg, lipschitz, lagrange)
-        norm = np.fabs(arg)
-        return (np.maximum(norm - lagrange / lipschitz, 0) * np.sign(arg)).reshape(self.shape)
+        self._conj = self.conjugate
 
     @doc_template_user
     def constraint(self, arg):
         arg = arg.reshape(self.shape)
-        norm_sum = np.fabs(arg).sum()
-        if norm_sum <= self.bound * (1 + self.tol):
+        norm_max = np.fabs(arg).sum(1).max()
+        if norm_max <= self.bound * (1 + self.tol):
             return 0
         return np.inf
 
@@ -762,18 +768,23 @@ class linf_l1(l1_linf):
         arg = arg.reshape(self.shape)
         lagrange = seminorms.seminorm.seminorm(self, arg, lagrange=lagrange,
                                  check_feasibility=check_feasibility)
-        norm_sum = np.fabs(arg).max(1).sum()
-        return lagrange * norm_sum
+        norm_max = np.fabs(arg).sum(1).max()
+        return lagrange * norm_max
+
+    @doc_template_user
+    def lagrange_prox(self, arg, lipschitz=1, lagrange=None):
+        arg = arg.reshape(self.shape)
+        lagrange = seminorms.seminorm.lagrange_prox(self, arg, lipschitz, lagrange)
+        return arg - self._conj.bound_prox(arg,
+                                           bound=lagrange / lipschitz)
 
     @doc_template_user
     def bound_prox(self, arg, bound=None):
+        arg = arg.reshape(self.shape)
         bound = seminorms.seminorm.bound_prox(self, arg, bound)
-        arg = np.asarray(arg, np.float).reshape(-1)
-        absarg = np.fabs(arg)
-        cut = find_solution_piecewise_linear_c(bound, 0, absarg)
-        if cut < np.inf:
-            value = np.sign(arg) * (absarg - cut) * (absarg > cut)
-        return value.reshape(self.shape)
+        return arg - self._conj.lagrange_prox(arg,
+                                              lagrange=bound,
+                                              lipschitz=1)
 
     @doc_template_user
     def proximal(self, quadratic, prox_control=None):
