@@ -631,10 +631,187 @@ class l1_l1(l1_l2):
     def get_conjugate(self):
         return l1_l2.get_conjugate(self)
 
+@objective_doc_templater()
+class l1_linf(l1_l1):
+
+    objective_template = r"""\|%(var)s\|_{1,\infty}"""
+    objective_vars = l1_l2.objective_vars.copy()
+    objective_vars['normklass'] = 'l1_linf'
+    objective_vars['dualnormklass'] = 'linf_l1'
+
+    def __init__(self, shape,
+                 lagrange=None,
+                 bound=None,
+                 offset=None,
+                 quadratic=None,
+                 initial=None):
+
+        block_sum.__init__(self, seminorms.supnorm,
+                           shape,
+                           lagrange=lagrange,
+                           bound=bound,
+                           offset=offset,
+                           quadratic=quadratic,
+                           initial=initial)
+
+    @doc_template_user
+    def lagrange_prox(self, arg, lipschitz=1, lagrange=None):
+        arg = arg.reshape(self.shape)
+        lagrange = seminorms.seminorm.lagrange_prox(self, arg, lipschitz, lagrange)
+        norm = np.fabs(arg)
+        return (np.maximum(norm - lagrange / lipschitz, 0) * np.sign(arg)).reshape(self.shape)
+
+    @doc_template_user
+    def constraint(self, arg):
+        arg = arg.reshape(self.shape)
+        norm_sum = np.fabs(arg).sum()
+        if norm_sum <= self.bound * (1 + self.tol):
+            return 0
+        return np.inf
+
+    @doc_template_user
+    def seminorm(self, arg, lagrange=None, check_feasibility=False):
+        arg = arg.reshape(self.shape)
+        lagrange = seminorms.seminorm.seminorm(self, arg, lagrange=lagrange,
+                                 check_feasibility=check_feasibility)
+        norm_sum = np.fabs(arg).max(1).sum()
+        return lagrange * norm_sum
+
+    @doc_template_user
+    def bound_prox(self, arg, bound=None):
+        bound = seminorms.seminorm.bound_prox(self, arg, bound)
+        arg = np.asarray(arg, np.float).reshape(-1)
+        absarg = np.fabs(arg)
+        cut = find_solution_piecewise_linear_c(bound, 0, absarg)
+        if cut < np.inf:
+            value = np.sign(arg) * (absarg - cut) * (absarg > cut)
+        return value.reshape(self.shape)
+
+    @doc_template_user
+    def proximal(self, quadratic, prox_control=None):
+        return seminorms.seminorm.proximal(self, quadratic, prox_control)
+
+    @doc_template_user
+    def get_bound(self):
+        return seminorms.seminorm.get_bound(self)
+
+    @doc_template_user
+    def set_bound(self, bound):
+        return seminorms.seminorm.set_bound(self, bound)
+
+    @doc_template_user
+    def get_lagrange(self):
+        return seminorms.seminorm.get_lagrange(self)
+
+    @doc_template_user
+    def set_lagrange(self, lagrange):
+        return seminorms.seminorm.set_lagrange(self, lagrange)
+
+    @doc_template_user
+    def get_dual(self):
+        return seminorms.seminorm.dual(self)
+
+    @doc_template_user
+    def get_dual(self):
+        return seminorms.seminorm.dual(self)
+
+    @doc_template_user
+    def get_conjugate(self):
+        return l1_l2.get_conjugate(self)
+
+@objective_doc_templater()
+class linf_l1(l1_linf):
+
+    objective_template = r"""\|%(var)s\|_{\infty,1}"""
+    objective_vars = l1_l2.objective_vars.copy()
+    objective_vars['normklass'] = 'linf_l1'
+    objective_vars['dualnormklass'] = 'l1_linf'
+
+    def __init__(self, shape,
+                 lagrange=None,
+                 bound=None,
+                 offset=None,
+                 quadratic=None,
+                 initial=None):
+
+        block_sum.__init__(self, seminorms.supnorm,
+                           shape,
+                           lagrange=lagrange,
+                           bound=bound,
+                           offset=offset,
+                           quadratic=quadratic,
+                           initial=initial)
+
+    @doc_template_user
+    def lagrange_prox(self, arg, lipschitz=1, lagrange=None):
+        arg = arg.reshape(self.shape)
+        lagrange = seminorms.seminorm.lagrange_prox(self, arg, lipschitz, lagrange)
+        norm = np.fabs(arg)
+        return (np.maximum(norm - lagrange / lipschitz, 0) * np.sign(arg)).reshape(self.shape)
+
+    @doc_template_user
+    def constraint(self, arg):
+        arg = arg.reshape(self.shape)
+        norm_sum = np.fabs(arg).sum()
+        if norm_sum <= self.bound * (1 + self.tol):
+            return 0
+        return np.inf
+
+    @doc_template_user
+    def seminorm(self, arg, lagrange=None, check_feasibility=False):
+        arg = arg.reshape(self.shape)
+        lagrange = seminorms.seminorm.seminorm(self, arg, lagrange=lagrange,
+                                 check_feasibility=check_feasibility)
+        norm_sum = np.fabs(arg).max(1).sum()
+        return lagrange * norm_sum
+
+    @doc_template_user
+    def bound_prox(self, arg, bound=None):
+        bound = seminorms.seminorm.bound_prox(self, arg, bound)
+        arg = np.asarray(arg, np.float).reshape(-1)
+        absarg = np.fabs(arg)
+        cut = find_solution_piecewise_linear_c(bound, 0, absarg)
+        if cut < np.inf:
+            value = np.sign(arg) * (absarg - cut) * (absarg > cut)
+        return value.reshape(self.shape)
+
+    @doc_template_user
+    def proximal(self, quadratic, prox_control=None):
+        return seminorms.seminorm.proximal(self, quadratic, prox_control)
+
+    @doc_template_user
+    def get_bound(self):
+        return seminorms.seminorm.get_bound(self)
+
+    @doc_template_user
+    def set_bound(self, bound):
+        return seminorms.seminorm.set_bound(self, bound)
+
+    @doc_template_user
+    def get_lagrange(self):
+        return seminorms.seminorm.get_lagrange(self)
+
+    @doc_template_user
+    def set_lagrange(self, lagrange):
+        return seminorms.seminorm.set_lagrange(self, lagrange)
+
+    @doc_template_user
+    def get_dual(self):
+        return seminorms.seminorm.dual(self)
+
+    @doc_template_user
+    def get_dual(self):
+        return seminorms.seminorm.dual(self)
+
+    @doc_template_user
+    def get_conjugate(self):
+        return l1_l2.get_conjugate(self)
+
 conjugate_block_pairs = {}
 for n1, n2 in [(block_max, block_sum),
                (l1_l2, linf_l2),
-               (l1_l1, linf_linf)
+               (l1_l1, linf_linf),
+               (l1_linf, linf_l1)
                ]:
     conjugate_block_pairs[n1] = n2
     conjugate_block_pairs[n2] = n1
