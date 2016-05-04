@@ -28,7 +28,7 @@ import IPython.sphinxext.ipython_console_highlighting
 
 # General configuration
 # ---------------------
-for pkg_name in ('numpydoc', 'texext'):
+for pkg_name in ('numpydoc', 'texext', 'sklearn'):
     try:
         __import__(pkg_name)
     except ImportError:
