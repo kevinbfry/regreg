@@ -100,7 +100,7 @@ Now we can create the problem object, beginning with the loss function
 
 
 ```python
-loss = rr.poisson_deviance.linear(X, counts=Y)
+loss = rr.glm.poisson(X, Y)
 ```
 
 Next, we can fit this model in the usual way
@@ -136,9 +136,6 @@ import regreg.api as rr
 The only code needed to add logistic regression is a class
 with one method which computes the objective and its gradient.
 
-.. literalinclude:: ../code/regreg/smooth.py
-..   :pyobject: logistic_deviance
-   
 
 Next, let's generate some example data,
 
@@ -152,7 +149,7 @@ Now we can create the problem object, beginning with the loss function
 
 
 ```python
-loss = rr.logistic_deviance.linear(X,successes=Y)
+loss = rr.glm.logistic(X, Y)
 penalty = rr.identity_quadratic(1., 0., 0., 0.)
 loss.quadratic = penalty
 loss
@@ -223,7 +220,7 @@ Now we can create the problem object, beginning with the loss function. The coef
 
 ```python
 multX = rr.linear_transform(X, input_shape=(p,J-1))
-loss = rr.multinomial_deviance.linear(multX, counts=Y)
+loss = rr.multinomial_loglike.linear(multX, counts=Y)
 ```
 
 Next, we can solve the problem
@@ -241,7 +238,7 @@ When $J=2$ this model should reduce to logistic regression. We can easily check 
 J = 2
 Y = np.random.randint(0,10,n*J).reshape((n,J))
 multX = rr.linear_transform(X, input_shape=(p,J-1))	
-loss = rr.multinomial_deviance.linear(multX, counts=Y)
+loss = rr.multinomial_loglike.linear(multX, counts=Y)
 solver = rr.FISTA(loss)
 solver.fit(tol=1e-6)
 multinomial_coefs = solver.composite.coefs.flatten()
@@ -253,7 +250,7 @@ and then the equivalent logistic regresison model
 ```python
 successes = Y[:,0]
 trials = np.sum(Y, axis=1)
-loss = rr.logistic_deviance.linear(X, successes=successes, trials=trials)
+loss = rr.glm.logistic(X, successes=successes, trials=trials)
 solver = rr.FISTA(loss)
 solver.fit(tol=1e-6)
 logistic_coefs = solver.composite.coefs

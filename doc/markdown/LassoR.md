@@ -23,7 +23,7 @@ n, p
 Our loss function and penalty
 
 ```python
-loss = rr.gaussian(X, Y)
+loss = rr.glm.gaussian(X, Y)
 loss
 ```
 
@@ -50,6 +50,7 @@ Compare this to `R`'s solution:
 ```python
 %%R -o S
 S = diabetes_lars$beta[4,]
+print(S)
 ```
 
 ## Bound form

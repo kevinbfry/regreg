@@ -14,7 +14,7 @@ PAPEROPT_letter = -D latex_paper_size=letter
 ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) $(SRCDIR)
 
 # Required R packages
-R_PACKAGES = Matrix gglasso
+R_PACKAGES = Matrix gglasso lars
 
 .PHONY: help clean pdf all dist public_html web web_public htmlonly api html pickle htmlhelp latex changes linkcheck doctest
 
